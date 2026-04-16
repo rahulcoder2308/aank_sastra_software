@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -713,18 +714,54 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory = Platform.isWindows ? await getApplicationDocumentsDirectory() : await getTemporaryDirectory();
-      final pdfPath = await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
+      final directory =
+          Platform.isWindows
+              ? await getApplicationDocumentsDirectory()
+              : await getTemporaryDirectory();
+      final pdfPath =
+          await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        // On Windows, sharing often works better with just the file to ensure attachments go through
-        await Share.shareXFiles(
-          [XFile(pdfPath.path, name: 'Mobile_Analysis.pdf', mimeType: 'application/pdf')],
+        // 100% Working approach for Windows: Save to a user-chosen location
+        String? outputFile = await FilePicker.saveFile(
+          dialogTitle: 'Save Mobile Analysis PDF',
+          fileName: 'Mobile_Analysis_$mobile.pdf',
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
         );
+
+        if (outputFile != null) {
+          // Ensure file extension is present
+          if (!outputFile.toLowerCase().endsWith('.pdf')) {
+            outputFile += '.pdf';
+          }
+          final savedFile = File(outputFile);
+          await savedFile.writeAsBytes(pdfBytes);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Report saved to $outputFile'),
+                action: SnackBarAction(
+                  label: 'Open Folder',
+                  onPressed: () {
+                    Process.run('explorer.exe', ['/select,', outputFile!]);
+                  },
+                ),
+              ),
+            );
+          }
+        }
       } else {
         await Share.shareXFiles(
-          [XFile(pdfPath.path, name: 'Mobile_Analysis.pdf', mimeType: 'application/pdf')],
+          [
+            XFile(
+              pdfPath.path,
+              name: 'Mobile_Analysis.pdf',
+              mimeType: 'application/pdf',
+            ),
+          ],
           subject: 'Mobile Number Analysis',
           text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨',
         );
@@ -2718,17 +2755,54 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory = Platform.isWindows ? await getApplicationDocumentsDirectory() : await getTemporaryDirectory();
-      final pdfPath = await File('${directory.path}/name_analysis_${name.replaceAll(' ', '_')}.pdf').create();
+      final directory =
+          Platform.isWindows
+              ? await getApplicationDocumentsDirectory()
+              : await getTemporaryDirectory();
+      final pdfPath =
+          await File(
+            '${directory.path}/name_analysis_${name.replaceAll(' ', '_')}.pdf',
+          ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Share.shareXFiles(
-          [XFile(pdfPath.path, name: 'Name_Analysis.pdf', mimeType: 'application/pdf')],
+        String? outputFile = await FilePicker.saveFile(
+          dialogTitle: 'Save Name Analysis PDF',
+          fileName: 'Name_Analysis_${name.replaceAll(' ', '_')}.pdf',
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
         );
+
+        if (outputFile != null) {
+          if (!outputFile.toLowerCase().endsWith('.pdf')) {
+            outputFile += '.pdf';
+          }
+          final savedFile = File(outputFile);
+          await savedFile.writeAsBytes(pdfBytes);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Report saved successfully!'),
+                action: SnackBarAction(
+                  label: 'Open Folder',
+                  onPressed: () {
+                    Process.run('explorer.exe', ['/select,', outputFile!]);
+                  },
+                ),
+              ),
+            );
+          }
+        }
       } else {
         await Share.shareXFiles(
-          [XFile(pdfPath.path, name: 'Name_Analysis.pdf', mimeType: 'application/pdf')],
+          [
+            XFile(
+              pdfPath.path,
+              name: 'Name_Analysis.pdf',
+              mimeType: 'application/pdf',
+            ),
+          ],
           subject: 'Name Numerology Analysis',
           text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
         );
@@ -2946,19 +3020,57 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory = Platform.isWindows ? await getApplicationDocumentsDirectory() : await getTemporaryDirectory();
-      final pdfPath = await File('${directory.path}/dob_analysis_${dob.replaceAll('/', '_')}.pdf').create();
+      final directory =
+          Platform.isWindows
+              ? await getApplicationDocumentsDirectory()
+              : await getTemporaryDirectory();
+      final pdfPath =
+          await File(
+            '${directory.path}/dob_analysis_${dob.replaceAll('/', '_')}.pdf',
+          ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Share.shareXFiles(
-          [XFile(pdfPath.path, name: 'DOB_Analysis.pdf', mimeType: 'application/pdf')],
+        String? outputFile = await FilePicker.saveFile(
+          dialogTitle: 'Save DOB Analysis PDF',
+          fileName: 'DOB_Analysis_${dob.replaceAll('/', '_')}.pdf',
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
         );
+
+        if (outputFile != null) {
+          if (!outputFile.toLowerCase().endsWith('.pdf')) {
+            outputFile += '.pdf';
+          }
+          final savedFile = File(outputFile);
+          await savedFile.writeAsBytes(pdfBytes);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Analysis Report saved!'),
+                action: SnackBarAction(
+                  label: 'Open Folder',
+                  onPressed: () {
+                    Process.run('explorer.exe', ['/select,', outputFile!]);
+                  },
+                ),
+              ),
+            );
+          }
+        }
       } else {
         await Share.shareXFiles(
-          [XFile(pdfPath.path, name: 'DOB_Analysis.pdf', mimeType: 'application/pdf')],
+          [
+            XFile(
+              pdfPath.path,
+              name: 'DOB_Analysis.pdf',
+              mimeType: 'application/pdf',
+            ),
+          ],
           subject: 'Numerology Analysis Report',
-          text: 'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
+          text:
+              'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
         );
       }
     } catch (e) {
