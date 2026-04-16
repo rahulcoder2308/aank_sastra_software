@@ -718,9 +718,17 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles([
-        XFile(pdfPath.path),
-      ], text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨');
+      await Share.shareXFiles(
+        [
+          XFile(
+            pdfPath.path,
+            name: 'Mobile_Analysis.pdf',
+            mimeType: 'application/pdf',
+          ),
+        ],
+        subject: 'Mobile Number Analysis',
+        text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -2717,9 +2725,17 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles([
-        XFile(pdfPath.path),
-      ], text: 'My Chaldean Name Analysis from Aank Sastra! ✨');
+      await Share.shareXFiles(
+        [
+          XFile(
+            pdfPath.path,
+            name: 'Name_Analysis.pdf',
+            mimeType: 'application/pdf',
+          ),
+        ],
+        subject: 'Name Numerology Analysis',
+        text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -2941,7 +2957,14 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       await Share.shareXFiles(
-        [XFile(pdfPath.path)],
+        [
+          XFile(
+            pdfPath.path,
+            name: 'DOB_Analysis.pdf',
+            mimeType: 'application/pdf',
+          ),
+        ],
+        subject: 'Numerology Analysis Report',
         text:
             'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
       );
