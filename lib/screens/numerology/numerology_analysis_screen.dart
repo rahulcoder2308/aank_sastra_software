@@ -718,17 +718,18 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            pdfPath.path,
-            name: 'Mobile_Analysis.pdf',
-            mimeType: 'application/pdf',
-          ),
-        ],
-        subject: 'Mobile Number Analysis',
-        text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨',
-      );
+      if (Platform.isWindows) {
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfBytes,
+          name: 'Mobile_Analysis_$mobile.pdf',
+        );
+      } else {
+        await Share.shareXFiles(
+          [XFile(pdfPath.path, name: 'Mobile_Analysis.pdf', mimeType: 'application/pdf')],
+          subject: 'Mobile Number Analysis',
+          text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -2725,17 +2726,18 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            pdfPath.path,
-            name: 'Name_Analysis.pdf',
-            mimeType: 'application/pdf',
-          ),
-        ],
-        subject: 'Name Numerology Analysis',
-        text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
-      );
+      if (Platform.isWindows) {
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfBytes,
+          name: 'Name_Analysis_${name.replaceAll(' ', '_')}.pdf',
+        );
+      } else {
+        await Share.shareXFiles(
+          [XFile(pdfPath.path, name: 'Name_Analysis.pdf', mimeType: 'application/pdf')],
+          subject: 'Name Numerology Analysis',
+          text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -2956,18 +2958,18 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            pdfPath.path,
-            name: 'DOB_Analysis.pdf',
-            mimeType: 'application/pdf',
-          ),
-        ],
-        subject: 'Numerology Analysis Report',
-        text:
-            'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
-      );
+      if (Platform.isWindows) {
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfBytes,
+          name: 'DOB_Analysis_${dob.replaceAll('/', '_')}.pdf',
+        );
+      } else {
+        await Share.shareXFiles(
+          [XFile(pdfPath.path, name: 'DOB_Analysis.pdf', mimeType: 'application/pdf')],
+          subject: 'Numerology Analysis Report',
+          text: 'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
