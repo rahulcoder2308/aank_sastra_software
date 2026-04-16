@@ -4,7 +4,7 @@ class User {
   final String email;
   final String phone;
   final String role;
-  final List<String> permissions;
+  final List<dynamic> permissions;
   final String? location;
   final String? specialization;
   final String? certifications;
@@ -36,7 +36,7 @@ class User {
       email: json['email'],
       phone: json['phone'] ?? '',
       role: json['role'] ?? 'User',
-      permissions: List<String>.from(json['permissions'] ?? []),
+      permissions: json['permissions'] ?? [],
       location: json['location'],
       specialization: json['specialization'],
       certifications: json['certifications'],
@@ -63,5 +63,25 @@ class User {
       'analyses_done': analysesDone,
       'experience': experience,
     };
+  }
+
+  bool hasPermission(String module, String action) {
+    if (role == 'Admin') return true;
+
+    for (var p in permissions) {
+      if (p['module'] == module) {
+        switch (action) {
+          case 'view':
+            return p['can_view'] == 1 || p['can_view'] == true;
+          case 'create':
+            return p['can_create'] == 1 || p['can_create'] == true;
+          case 'edit':
+            return p['can_edit'] == 1 || p['can_edit'] == true;
+          case 'delete':
+            return p['can_delete'] == 1 || p['can_delete'] == true;
+        }
+      }
+    }
+    return false;
   }
 }

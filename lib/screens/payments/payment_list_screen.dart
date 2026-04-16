@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
+import '../../core/api_service.dart';
+import '../../providers/auth_provider.dart';
+import 'package:provider/provider.dart';
+import 'dart:async';
+import 'package:intl/intl.dart';
 
 class PaymentListScreen extends StatefulWidget {
   const PaymentListScreen({super.key});
@@ -11,45 +16,74 @@ class PaymentListScreen extends StatefulWidget {
 class _PaymentListScreenState extends State<PaymentListScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedMode = 'All';
-  bool _isEmpty = false;
+  DateTimeRange? _selectedDateRange;
+  bool _isLoading = false;
+  List<dynamic> _payments = [];
+  int _currentPage = 1;
+  int _totalPages = 1;
+  int _totalRecords = 0;
+  Timer? _debounce;
 
-  final List<Map<String, dynamic>> _payments = [
-    {
-      'customer': 'Aryan Sharma',
-      'total': 45000,
-      'paid': 45000,
-      'date': '2024-03-25',
-      'mode': 'UPI',
-    },
-    {
-      'customer': 'Priya Malhotra',
-      'total': 85000,
-      'paid': 50000,
-      'date': '2024-03-24',
-      'mode': 'Bank',
-    },
-    {
-      'customer': 'Vikram Rathore',
-      'total': 15000,
-      'paid': 15000,
-      'date': '2024-03-23',
-      'mode': 'Cash',
-    },
-    {
-      'customer': 'Sneha Kapoor',
-      'total': 12000,
-      'paid': 0,
-      'date': '2024-03-22',
-      'mode': 'UPI',
-    },
-    {
-      'customer': 'Amit Shah',
-      'total': 65000,
-      'paid': 30000,
-      'date': '2024-03-21',
-      'mode': 'Bank',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchPayments();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _currentPage = 1);
+        _fetchPayments();
+      }
+    });
+  }
+
+  Future<void> _fetchPayments() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await ApiService.getPayments(
+        page: _currentPage,
+        search: _searchController.text,
+        mode: _selectedMode,
+        startDate:
+            _selectedDateRange?.start != null
+                ? DateFormat('Y-MM-dd').format(_selectedDateRange!.start)
+                : null,
+        endDate:
+            _selectedDateRange?.end != null
+                ? DateFormat('Y-MM-dd').format(_selectedDateRange!.end)
+                : null,
+      );
+
+      if (response['success']) {
+        setState(() {
+          _payments = response['data']['data'];
+          _currentPage = response['data']['current_page'];
+          _totalPages = response['data']['last_page'];
+          _totalRecords = response['data']['total'];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +96,23 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
           const SizedBox(height: 32),
           _buildActionBar(),
           const SizedBox(height: 24),
-          Expanded(child: _isEmpty ? _buildEmptyState() : _buildPaymentTable()),
+          Expanded(
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_payments.isEmpty
+                        ? _buildEmptyState()
+                        : _buildPaymentTable()),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildHeader() {
+    final user = context.watch<AuthProvider>().user;
+    final canCreate = user?.hasPermission('Payments', 'create') ?? false;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
@@ -98,7 +142,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                     ),
                   ],
                 ),
-                if (!isNarrow)
+                if (!isNarrow && canCreate)
                   ElevatedButton.icon(
                     onPressed: () => _showPaymentDialog(),
                     icon: const Icon(Icons.add, size: 20),
@@ -118,7 +162,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                   ),
               ],
             ),
-            if (isNarrow) ...[
+            if (isNarrow && canCreate) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -220,8 +264,40 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
   }
 
   Widget _buildDateRangeSelector() {
+    String label = 'Date Range';
+    if (_selectedDateRange != null) {
+      label =
+          '${DateFormat('MMM d').format(_selectedDateRange!.start)} - ${DateFormat('MMM d').format(_selectedDateRange!.end)}';
+    }
+
     return InkWell(
-      onTap: () {},
+      onTap: () async {
+        final DateTimeRange? picked = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+          initialDateRange: _selectedDateRange,
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: AppColors.primary,
+                  onPrimary: Colors.white,
+                  onSurface: AppColors.textPrimary,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (picked != null) {
+          setState(() {
+            _selectedDateRange = picked;
+            _currentPage = 1;
+          });
+          _fetchPayments();
+        }
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -230,17 +306,23 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey[200]!),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.calendar_today_outlined,
               size: 18,
               color: AppColors.textSecondary,
             ),
-            SizedBox(width: 12),
-            Text(
-              'Date Range',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -272,7 +354,13 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
             'UPI',
             'Bank',
           ].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-      onChanged: (v) => setState(() => _selectedMode = v!),
+      onChanged: (v) {
+        setState(() {
+          _selectedMode = v!;
+          _currentPage = 1;
+        });
+        _fetchPayments();
+      },
     );
   }
 
@@ -281,8 +369,11 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
       onPressed: () {
         setState(() {
           _selectedMode = 'All';
+          _selectedDateRange = null;
           _searchController.clear();
+          _currentPage = 1;
         });
+        _fetchPayments();
       },
       icon: const Icon(Icons.refresh),
       color: AppColors.textSecondary,
@@ -291,6 +382,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
   }
 
   Widget _buildPaymentTable() {
+    final user = context.watch<AuthProvider>().user;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -378,6 +470,18 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                   Expanded(
                     flex: 2,
                     child: Text(
+                      'PROCESSED BY',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
                       'ACTIONS',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -399,11 +503,12 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                         Divider(height: 1, color: Colors.grey[100]),
                 itemBuilder: (context, index) {
                   final p = _payments[index];
-                  final double total = (p['total'] as num).toDouble();
-                  final double paid = (p['paid'] as num).toDouble();
+                  final double total = double.parse(p['total_amount']);
+                  final double paid = double.parse(p['paid_amount']);
                   final double remaining = total - paid;
                   final bool isFullyPaid = remaining <= 0;
                   final double progress = total > 0 ? (paid / total) : 0.0;
+                  final DateTime date = DateTime.parse(p['payment_date']);
 
                   return InkWell(
                     onTap: () {},
@@ -417,7 +522,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                           Expanded(
                             flex: 3,
                             child: Text(
-                              p['customer'],
+                              p['customer_name'],
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
@@ -427,7 +532,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              '₹${p['total']}',
+                              '₹${p['total_amount']}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -438,7 +543,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              '₹${p['paid']}',
+                              '₹${p['paid_amount']}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.statusAvailable,
@@ -469,7 +574,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '₹$remaining left',
+                                    '₹${remaining.toStringAsFixed(2)} left',
                                     style: TextStyle(
                                       fontSize: 10,
                                       color:
@@ -486,9 +591,20 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              p['date'],
+                              DateFormat('yyyy-MM-dd').format(date),
                               style: const TextStyle(
                                 fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              p['added_by']?['name'] ?? 'System',
+                              style: const TextStyle(
+                                fontSize: 11,
                                 color: AppColors.textSecondary,
                               ),
                               textAlign: TextAlign.center,
@@ -499,26 +615,25 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                _buildActionButton(
-                                  icon: Icons.visibility_outlined,
-                                  color: Colors.blue,
-                                  tooltip: 'View',
-                                  onTap: () => _showPaymentDialog(payment: p),
-                                ),
-                                const SizedBox(width: 8),
-                                _buildActionButton(
-                                  icon: Icons.add_circle_outline,
-                                  color: AppColors.primary,
-                                  tooltip: 'Add Installment',
-                                  onTap: () => _showPaymentDialog(payment: p),
-                                ),
-                                const SizedBox(width: 8),
-                                _buildActionButton(
-                                  icon: Icons.delete_outline,
-                                  color: AppColors.statusSold,
-                                  tooltip: 'Delete',
-                                  onTap: () => _showDeleteConfirmation(p),
-                                ),
+                                if (user?.hasPermission('Payments', 'edit') ??
+                                    false)
+                                  _buildActionButton(
+                                    icon: Icons.edit_outlined,
+                                    color: Colors.blue,
+                                    tooltip: 'Edit',
+                                    onTap: () => _showPaymentDialog(payment: p),
+                                  ),
+                                if (user?.hasPermission('Payments', 'edit') ??
+                                    false)
+                                  const SizedBox(width: 8),
+                                if (user?.hasPermission('Payments', 'delete') ??
+                                    false)
+                                  _buildActionButton(
+                                    icon: Icons.delete_outline,
+                                    color: AppColors.statusSold,
+                                    tooltip: 'Delete',
+                                    onTap: () => _showDeleteConfirmation(p),
+                                  ),
                               ],
                             ),
                           ),
@@ -571,54 +686,92 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Text(
-            'Showing 1-5 of 24 records',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          Text(
+            'Showing ${(_currentPage - 1) * 10 + 1}-${((_currentPage - 1) * 10 + _payments.length)} of $_totalRecords records',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(width: 24),
-          _buildPageArrow(Icons.chevron_left, enabled: false),
+          _buildPageArrow(
+            Icons.chevron_left,
+            enabled: _currentPage > 1,
+            onTap: () {
+              setState(() => _currentPage--);
+              _fetchPayments();
+            },
+          ),
           const SizedBox(width: 8),
-          _buildPageNumber(1, active: true),
-          _buildPageNumber(2),
+          _buildPageNumber(_currentPage, active: true),
+          if (_currentPage < _totalPages)
+            _buildPageNumber(
+              _currentPage + 1,
+              onTap: () {
+                setState(() => _currentPage++);
+                _fetchPayments();
+              },
+            ),
           const SizedBox(width: 8),
-          _buildPageArrow(Icons.chevron_right, enabled: true),
+          _buildPageArrow(
+            Icons.chevron_right,
+            enabled: _currentPage < _totalPages,
+            onTap: () {
+              setState(() => _currentPage++);
+              _fetchPayments();
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPageArrow(IconData icon, {bool enabled = true}) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[200]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        icon,
-        size: 16,
-        color: enabled ? AppColors.textPrimary : Colors.grey[300],
+  Widget _buildPageArrow(
+    IconData icon, {
+    bool enabled = true,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[200]!),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: enabled ? AppColors.textPrimary : Colors.grey[300],
+        ),
       ),
     );
   }
 
-  Widget _buildPageNumber(int number, {bool active = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      alignment: Alignment.center,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: active ? AppColors.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border: active ? null : Border.all(color: Colors.grey[200]!),
-      ),
-      child: Text(
-        '$number',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: active ? FontWeight.bold : FontWeight.normal,
-          color: active ? Colors.white : AppColors.textPrimary,
+  Widget _buildPageNumber(
+    int number, {
+    bool active = false,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: active ? null : onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: active ? null : Border.all(color: Colors.grey[200]!),
+        ),
+        child: Text(
+          '$number',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            color: active ? Colors.white : AppColors.textPrimary,
+          ),
         ),
       ),
     );
@@ -742,7 +895,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Are you sure you want to delete payment record for ${item['customer']}?',
+                          'Are you sure you want to delete payment record for ${item['customer_name']}?',
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textPrimary,
@@ -778,19 +931,27 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _payments.remove(item);
-                                    if (_payments.isEmpty) _isEmpty = true;
-                                  });
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text('Payment for ${item['customer']} deleted'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                onPressed: () async {
+                                  try {
+                                    await ApiService.deletePayment(item['id']);
+                                    Navigator.pop(context);
+                                    _fetchPayments();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Payment for ${item['customer_name']} deleted',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red,
@@ -827,16 +988,8 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
       builder:
           (context) => PaymentModal(
             paymentData: payment,
-            onSave: (data) {
-              setState(() {
-                if (payment != null) {
-                  final index = _payments.indexOf(payment);
-                  _payments[index] = data;
-                } else {
-                  _payments.insert(0, data);
-                  _isEmpty = false;
-                }
-              });
+            onSave: () {
+              _fetchPayments();
             },
           ),
     );
@@ -845,7 +998,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
 
 class PaymentModal extends StatefulWidget {
   final Map<String, dynamic>? paymentData;
-  final Function(Map<String, dynamic>) onSave;
+  final VoidCallback onSave;
 
   const PaymentModal({super.key, this.paymentData, required this.onSave});
 
@@ -860,14 +1013,23 @@ class _PaymentModalState extends State<PaymentModal> {
   late TextEditingController _paidController;
   late String _selectedMode;
   double _remaining = 0;
+  bool _isSaving = false;
+  int? _selectedCustomerId;
 
   @override
   void initState() {
     super.initState();
-    _customerController = TextEditingController(text: widget.paymentData?['customer'] ?? '');
-    _totalController = TextEditingController(text: (widget.paymentData?['total'] ?? 0).toString());
-    _paidController = TextEditingController(text: (widget.paymentData?['paid'] ?? 0).toString());
-    _selectedMode = widget.paymentData?['mode'] ?? 'Cash';
+    _customerController = TextEditingController(
+      text: widget.paymentData?['customer_name'] ?? '',
+    );
+    _totalController = TextEditingController(
+      text: (widget.paymentData?['total_amount'] ?? 0).toString(),
+    );
+    _paidController = TextEditingController(
+      text: (widget.paymentData?['paid_amount'] ?? 0).toString(),
+    );
+    _selectedMode = widget.paymentData?['payment_mode'] ?? 'Cash';
+    _selectedCustomerId = widget.paymentData?['customer_id'];
     _updateRemaining();
   }
 
@@ -925,7 +1087,9 @@ class _PaymentModalState extends State<PaymentModal> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      isEditing ? Icons.visibility_outlined : Icons.account_balance_wallet_outlined,
+                      isEditing
+                          ? Icons.visibility_outlined
+                          : Icons.account_balance_wallet_outlined,
                       color: AppColors.primary,
                     ),
                   ),
@@ -942,7 +1106,9 @@ class _PaymentModalState extends State<PaymentModal> {
                         ),
                       ),
                       Text(
-                        isEditing ? 'View and update payment information' : 'Record a customer payment transaction',
+                        isEditing
+                            ? 'View and update payment information'
+                            : 'Record a customer payment transaction',
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -977,24 +1143,7 @@ class _PaymentModalState extends State<PaymentModal> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _customerController,
-                      decoration: InputDecoration(
-                        hintText: 'Search or enter customer name...',
-                        prefixIcon: const Icon(Icons.person_outline, size: 18),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
-                        ),
-                      ),
-                      validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
-                    ),
+                    _buildCustomerAutocomplete(),
 
                     const SizedBox(height: 20),
                     Row(
@@ -1034,20 +1183,32 @@ class _PaymentModalState extends State<PaymentModal> {
                               const SizedBox(height: 8),
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _remaining > 0 ? Colors.orange[50] : Colors.green[50],
+                                  color:
+                                      _remaining > 0
+                                          ? Colors.orange[50]
+                                          : Colors.green[50],
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: _remaining > 0 ? Colors.orange[200]! : Colors.green[200]!,
+                                    color:
+                                        _remaining > 0
+                                            ? Colors.orange[200]!
+                                            : Colors.green[200]!,
                                   ),
                                 ),
                                 child: Text(
-                                  '₹$_remaining',
+                                  '₹${_remaining.toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: _remaining > 0 ? Colors.orange[900] : Colors.green[900],
+                                    color:
+                                        _remaining > 0
+                                            ? Colors.orange[900]
+                                            : Colors.green[900],
                                   ),
                                 ),
                               ),
@@ -1076,17 +1237,28 @@ class _PaymentModalState extends State<PaymentModal> {
                                   fillColor: Colors.grey[50],
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.grey[200]!),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[200]!,
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.grey[200]!),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[200]!,
+                                    ),
                                   ),
                                 ),
-                                items: ['Cash', 'UPI', 'Bank']
-                                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _selectedMode = v!),
+                                items:
+                                    ['Cash', 'UPI', 'Bank']
+                                        .map(
+                                          (m) => DropdownMenuItem(
+                                            value: m,
+                                            child: Text(m),
+                                          ),
+                                        )
+                                        .toList(),
+                                onChanged:
+                                    (v) => setState(() => _selectedMode = v!),
                               ),
                             ],
                           ),
@@ -1113,24 +1285,7 @@ class _PaymentModalState extends State<PaymentModal> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                widget.onSave({
-                                  'customer': _customerController.text,
-                                  'total': double.parse(_totalController.text),
-                                  'paid': double.parse(_paidController.text),
-                                  'date': widget.paymentData?['date'] ?? DateTime.now().toString().split(' ')[0],
-                                  'mode': _selectedMode,
-                                });
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(isEditing ? 'Payment updated successfully!' : 'Payment recorded successfully!'),
-                                    backgroundColor: AppColors.primary,
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: _isSaving ? null : _savePayment,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -1140,10 +1295,24 @@ class _PaymentModalState extends State<PaymentModal> {
                               ),
                               elevation: 0,
                             ),
-                            child: Text(
-                              isEditing ? 'Update Payment' : 'Save Payment',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                            child:
+                                _isSaving
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                    : Text(
+                                      isEditing
+                                          ? 'Update Payment'
+                                          : 'Save Payment',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                           ),
                         ),
                       ],
@@ -1155,6 +1324,109 @@ class _PaymentModalState extends State<PaymentModal> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _savePayment() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+      try {
+        final data = {
+          'customer_name': _customerController.text,
+          'customer_id': _selectedCustomerId,
+          'total_amount': _totalController.text,
+          'paid_amount': _paidController.text,
+          'payment_mode': _selectedMode,
+          'payment_date':
+              widget.paymentData?['payment_date'] ??
+              DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        };
+
+        if (widget.paymentData != null) {
+          await ApiService.updatePayment(widget.paymentData!['id'], data);
+        } else {
+          await ApiService.createPayment(data);
+        }
+
+        widget.onSave();
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.paymentData != null
+                    ? 'Payment updated successfully!'
+                    : 'Payment recorded successfully!',
+              ),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Widget _buildCustomerAutocomplete() {
+    return Autocomplete<Map<String, dynamic>>(
+      optionsBuilder: (TextEditingValue textEditingValue) async {
+        if (textEditingValue.text.isEmpty) {
+          return const Iterable<Map<String, dynamic>>.empty();
+        }
+        try {
+          final response = await ApiService.getCustomers(
+            search: textEditingValue.text,
+          );
+          if (response['data'] != null) {
+            final List<dynamic> data = response['data'];
+            return data.map((e) => Map<String, dynamic>.from(e));
+          }
+        } catch (e) {
+          debugPrint('Error: $e');
+        }
+        return const Iterable<Map<String, dynamic>>.empty();
+      },
+      displayStringForOption: (option) => option['name'],
+      onSelected: (selection) {
+        setState(() {
+          _customerController.text = selection['name'];
+          _selectedCustomerId = selection['id'];
+        });
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        if (_customerController.text.isNotEmpty && controller.text.isEmpty) {
+          controller.text = _customerController.text;
+        }
+
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          onFieldSubmitted: (v) => onFieldSubmitted(),
+          onChanged: (v) => _customerController.text = v,
+          decoration: InputDecoration(
+            hintText: 'Search customer...',
+            prefixIcon: const Icon(Icons.person_outline, size: 18),
+            filled: true,
+            fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+          ),
+          validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
+        );
+      },
     );
   }
 
@@ -1195,4 +1467,3 @@ class _PaymentModalState extends State<PaymentModal> {
     );
   }
 }
-

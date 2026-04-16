@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/api_service.dart';
+import '../../providers/auth_provider.dart';
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -115,6 +117,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   Widget _buildPageHeader() {
+    final user = context.watch<AuthProvider>().user;
+    final canCreate = user?.hasPermission('Customer', 'create') ?? false;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
@@ -144,7 +149,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                     ),
                   ],
                 ),
-                if (!isNarrow)
+                if (!isNarrow && canCreate)
                   ElevatedButton.icon(
                     onPressed: () => _showCustomerDialog(),
                     icon: const Icon(Icons.add, size: 20),
@@ -164,7 +169,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   ),
               ],
             ),
-            if (isNarrow) ...[
+            if (isNarrow && canCreate) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -466,6 +471,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   Widget _buildCustomerTable() {
+    final user = context.watch<AuthProvider>().user;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -641,23 +647,26 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                _buildActionButton(
-                                  icon: Icons.edit_outlined,
-                                  color: Colors.blue,
-                                  tooltip: 'Edit',
-                                  onTap:
-                                      () => _showCustomerDialog(
-                                        customer: customer,
-                                      ),
-                                ),
-                                const SizedBox(width: 8),
-                                _buildActionButton(
-                                  icon: Icons.delete_outline,
-                                  color: Colors.red,
-                                  tooltip: 'Delete',
-                                  onTap:
-                                      () => _showDeleteConfirmation(customer),
-                                ),
+                                if (user?.hasPermission('Customer', 'edit') ?? false)
+                                  _buildActionButton(
+                                    icon: Icons.edit_outlined,
+                                    color: Colors.blue,
+                                    tooltip: 'Edit',
+                                    onTap:
+                                        () => _showCustomerDialog(
+                                          customer: customer,
+                                        ),
+                                  ),
+                                if (user?.hasPermission('Customer', 'edit') ?? false)
+                                  const SizedBox(width: 8),
+                                if (user?.hasPermission('Customer', 'delete') ?? false)
+                                  _buildActionButton(
+                                    icon: Icons.delete_outline,
+                                    color: Colors.red,
+                                    tooltip: 'Delete',
+                                    onTap:
+                                        () => _showDeleteConfirmation(customer),
+                                  ),
                               ],
                             ),
                           ),

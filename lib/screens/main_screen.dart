@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/localization/language_provider.dart';
 import '../core/app_colors.dart';
-import 'dashboard/dashboard_screen.dart'; // We'll rename some stuff here soon
+import 'dashboard/dashboard_screen.dart';
 import 'customers/customer_list_screen.dart';
 import 'inquiry/inquiry_list_screen.dart';
 import 'inventory/number_inventory_screen.dart';
 import 'payments/payment_list_screen.dart';
 import 'numerology/numerology_analysis_screen.dart';
-import 'reports/reports_screen.dart';
 import 'daily_work/daily_work_screen.dart';
 import 'settings/settings_screen.dart';
+import 'profile/profile_screen.dart';
 import '../providers/auth_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -32,14 +32,13 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Custom Window Title Bar / Drag Area
           DragToMoveArea(
             child: Container(
               height: 42,
               color: Colors.white,
               child: Row(
                 children: [
-                  const SizedBox(width: 80), // Space for Mac Traffic Lights
+                  const SizedBox(width: 80),
                   const Spacer(),
                   const Text(
                     'AANK SASTRA',
@@ -60,7 +59,6 @@ class _MainScreenState extends State<MainScreen> {
           Expanded(
             child: Row(
               children: [
-                // Sidebar
                 Sidebar(
                   selectedIndex: _selectedIndex,
                   onItemSelected: (index) {
@@ -69,8 +67,6 @@ class _MainScreenState extends State<MainScreen> {
                     });
                   },
                 ),
-
-                // Main Content Area
                 Expanded(
                   child: Column(
                     children: [
@@ -102,8 +98,6 @@ class _MainScreenState extends State<MainScreen> {
         return const NumberInventoryScreen();
       case 4:
         return const PaymentListScreen();
-      case 5:
-        return const ReportsScreen();
       case 6:
         return const NumerologyAnalysisScreen();
       case 7:
@@ -111,21 +105,11 @@ class _MainScreenState extends State<MainScreen> {
       case 8:
         return const SettingsScreen();
       default:
-        final lp = context.read<LanguageProvider>();
-        return Center(
-          child: Text(
-            '${lp.translate('dashboard')} Screen Coming Soon', // Using dashboard as fallback title key
-            style: const TextStyle(
-              fontSize: 24,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        );
+        return const DashboardContent();
     }
   }
 }
 
-// Sidebar Component
 class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
@@ -139,13 +123,14 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lp = context.watch<LanguageProvider>();
+    final user = context.watch<AuthProvider>().user;
+
     return Container(
       width: 260,
       color: AppColors.sidebarBackground,
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
         children: [
-          // Logo
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Row(
@@ -191,10 +176,7 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 32),
-
-          // Menu Items - Scrollable
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -205,54 +187,55 @@ class Sidebar extends StatelessWidget {
                   Icons.grid_view_rounded,
                   lp.translate('dashboard'),
                 ),
-                _buildMenuItem(
-                  context,
-                  1,
-                  Icons.people_outline,
-                  lp.translate('customers'),
-                ),
-                _buildMenuItem(
-                  context,
-                  2,
-                  Icons.help_outline,
-                  lp.translate('inquiry'),
-                ),
-                _buildMenuItem(
-                  context,
-                  3,
-                  Icons.bar_chart_rounded,
-                  lp.translate('numbers'),
-                ),
-                _buildMenuItem(
-                  context,
-                  4,
-                  Icons.payment_rounded,
-                  lp.translate('payments'),
-                ),
-                _buildMenuItem(
-                  context,
-                  5,
-                  Icons.description_outlined,
-                  lp.translate('reports'),
-                ),
-                _buildMenuItem(
-                  context,
-                  6,
-                  Icons.auto_awesome_outlined,
-                  lp.translate('numerology'),
-                ),
-                _buildMenuItem(
-                  context,
-                  7,
-                  Icons.work_outline,
-                  lp.translate('daily_work'),
-                ),
-                _buildMenuItem(
-                  context,
-                  8,
-                  Icons.settings_outlined,
-                  lp.translate('settings'),
-                ),
+                if (user?.hasPermission('Customer', 'view') ?? false)
+                  _buildMenuItem(
+                    context,
+                    1,
+                    Icons.people_outline,
+                    lp.translate('customers'),
+                  ),
+                if (user?.hasPermission('Inquiry', 'view') ?? false)
+                  _buildMenuItem(
+                    context,
+                    2,
+                    Icons.help_outline,
+                    lp.translate('inquiry'),
+                  ),
+                if (user?.hasPermission('Numbers', 'view') ?? false)
+                  _buildMenuItem(
+                    context,
+                    3,
+                    Icons.bar_chart_rounded,
+                    lp.translate('numbers'),
+                  ),
+                if (user?.hasPermission('Payments', 'view') ?? false)
+                  _buildMenuItem(
+                    context,
+                    4,
+                    Icons.payment_rounded,
+                    lp.translate('payments'),
+                  ),
+                if (user?.hasPermission('Numerology', 'view') ?? false)
+                  _buildMenuItem(
+                    context,
+                    6,
+                    Icons.auto_awesome_outlined,
+                    lp.translate('numerology'),
+                  ),
+                if (user?.hasPermission('Daily Work', 'view') ?? false)
+                  _buildMenuItem(
+                    context,
+                    7,
+                    Icons.work_outline,
+                    lp.translate('daily_work'),
+                  ),
+                if (user?.role == 'Admin')
+                  _buildMenuItem(
+                    context,
+                    8,
+                    Icons.settings_outlined,
+                    lp.translate('settings'),
+                  ),
                 const SizedBox(height: 12),
                 const Divider(indent: 24, endIndent: 24, color: Colors.black12),
                 const SizedBox(height: 12),
@@ -432,6 +415,59 @@ class Sidebar extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         dense: true,
       ),
+    );
+  }
+}
+
+class TopHeader extends StatelessWidget {
+  const TopHeader({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.user;
+
+    return Row(
+      children: [
+        const Spacer(),
+        InkWell(
+          onTap:
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              ),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      user?.name ?? 'Guest User',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      user?.role.toUpperCase() ?? 'ANALIZER',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.person, color: Colors.white, size: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

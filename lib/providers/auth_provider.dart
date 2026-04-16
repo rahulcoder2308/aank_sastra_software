@@ -63,6 +63,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       final userData = await ApiService.getProfile();
       _user = User.fromJson(userData);
+      // Persist fresh permissions to local storage so they survive restarts
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_data', jsonEncode(_user!.toJson()));
       notifyListeners();
     } catch (e) {
       print("Error refreshing profile: $e");

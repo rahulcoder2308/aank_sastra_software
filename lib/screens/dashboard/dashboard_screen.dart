@@ -1,73 +1,118 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
+import '../../core/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../profile/profile_screen.dart';
 
-// This file now only contains the Dashboard specific content
-class DashboardContent extends StatelessWidget {
+class DashboardContent extends StatefulWidget {
   const DashboardContent({super.key});
 
   @override
+  State<DashboardContent> createState() => _DashboardContentState();
+}
+
+class _DashboardContentState extends State<DashboardContent> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _dashboardData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+    // Silently refresh user profile so permission changes by Admin
+    // are reflected immediately without requiring a re-login.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AuthProvider>().refreshProfile();
+      }
+    });
+  }
+
+  Future<void> _fetchDashboardData() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await ApiService.getDashboardStats();
+      if (response['success']) {
+        setState(() => _dashboardData = response['data']);
+      }
+    } catch (e) {
+      debugPrint('Dashboard Error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Greeting & Title
-          const Text(
-            'Executive Dashboard',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final summary = _dashboardData?['summary'];
+    final distribution = _dashboardData?['distribution'];
+    final recentActivity = _dashboardData?['recent_activity'] as List<dynamic>?;
+    final revenueStats = _dashboardData?['revenue_growth'] as List<dynamic>?;
+
+    return RefreshIndicator(
+      onRefresh: _fetchDashboardData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Executive Dashboard',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const Text(
-            'Transforming numbers into strategic destiny.',
-            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
-          ),
-
-          const SizedBox(height: 32),
-
-          // Summary Cards Grid
-          const SummaryGrid(),
-
-          const SizedBox(height: 32),
-
-          // Charts & Activity Distribution
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 600) {
-                return Column(
+            const Text(
+              'Transforming numbers into strategic destiny.',
+              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 32),
+            SummaryGrid(summary: summary),
+            const SizedBox(height: 32),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 600) {
+                  return Column(
+                    children: [
+                      RevenueGrowthChart(data: revenueStats),
+                      const SizedBox(height: 24),
+                      ActivityDistribution(distribution: distribution),
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const RevenueGrowthChart(),
-                    const SizedBox(height: 24),
-                    const ActivityDistribution(),
+                    Expanded(
+                      flex: 2,
+                      child: RevenueGrowthChart(data: revenueStats),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 1,
+                      child: ActivityDistribution(distribution: distribution),
+                    ),
                   ],
                 );
-              }
-              return const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 2, child: RevenueGrowthChart()),
-                  SizedBox(width: 24),
-                  Expanded(flex: 1, child: ActivityDistribution()),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 32),
-
-          // Recent Activity Table
-          const RecentActivityTable(),
-        ],
+              },
+            ),
+            const SizedBox(height: 32),
+            RecentActivityTable(activities: recentActivity),
+          ],
+        ),
       ),
     );
   }
 }
+// Fixing the build logic above - wait, I'll rewrite the whole file for better consistency
 
 class TopHeader extends StatelessWidget {
   const TopHeader({super.key});
@@ -80,11 +125,6 @@ class TopHeader extends StatelessWidget {
     return Row(
       children: [
         const Spacer(),
-
-        const SizedBox(width: 24),
-
-        const SizedBox(width: 16),
-
         // Profile
         InkWell(
           onTap:
@@ -129,7 +169,8 @@ class TopHeader extends StatelessWidget {
 }
 
 class SummaryGrid extends StatelessWidget {
-  const SummaryGrid({super.key});
+  final Map<String, dynamic>? summary;
+  const SummaryGrid({super.key, this.summary});
 
   @override
   Widget build(BuildContext context) {
@@ -139,39 +180,39 @@ class SummaryGrid extends StatelessWidget {
         child: Row(
           children: [
             _buildGridItem(
-              const SummaryCard(
+              SummaryCard(
                 label: 'TOTAL CUSTOMERS',
-                value: '1,284',
-                change: '+12%',
+                value: summary?['total_customers'] ?? '0',
+                change: '+100%',
                 icon: Icons.people_outline,
                 isPositive: true,
               ),
             ),
             const SizedBox(width: 16),
             _buildGridItem(
-              const SummaryCard(
+              SummaryCard(
                 label: 'TOTAL SALES',
-                value: '₹42.8L',
-                change: '+5.4%',
+                value: summary?['total_sales'] ?? '₹0',
+                change: '+100%',
                 icon: Icons.shopping_bag_outlined,
                 isPositive: true,
               ),
             ),
             const SizedBox(width: 16),
             _buildGridItem(
-              const SummaryCard(
+              SummaryCard(
                 label: 'PENDING PAYMENTS',
-                value: '₹3.1L',
-                change: '-2%',
+                value: summary?['pending_payments'] ?? '₹0',
+                change: 'Current',
                 icon: Icons.pending_actions_outlined,
                 isPositive: false,
               ),
             ),
             const SizedBox(width: 16),
             _buildGridItem(
-              const SummaryCard(
+              SummaryCard(
                 label: 'AVAILABLE NUMBERS',
-                value: '542',
+                value: summary?['available_numbers'] ?? '0',
                 change: 'Stable',
                 icon: Icons.numbers_outlined,
                 isNeutral: true,
@@ -284,7 +325,8 @@ class SummaryCard extends StatelessWidget {
 }
 
 class RevenueGrowthChart extends StatelessWidget {
-  const RevenueGrowthChart({super.key});
+  final List<dynamic>? data;
+  const RevenueGrowthChart({super.key, this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -304,81 +346,56 @@ class RevenueGrowthChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 12,
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Revenue Growth',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Monthly analysis against projections',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              Text(
+                'Revenue Growth',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Indicator(color: AppColors.primary, text: 'CURRENT'),
-                  const SizedBox(width: 16),
-                  const Indicator(color: Colors.grey, text: 'PREVIOUS'),
-                ],
+              Text(
+                'Recent revenue collection analysis',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
           ),
           const SizedBox(height: 40),
-          // Placeholder for Chart
           SizedBox(
             height: 200,
             width: double.infinity,
-            child: CustomPaint(painter: ChartPainter()),
+            child:
+                data == null || data!.isEmpty
+                    ? const Center(child: Text('Not enough data'))
+                    : CustomPaint(painter: ChartPainter(data: data!)),
           ),
+          if (data != null && data!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children:
+                    data!
+                        .map(
+                          (e) => Text(
+                            e['month'],
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        )
+                        .toList(),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class Indicator extends StatelessWidget {
-  final Color color;
-  final String text;
-  const Indicator({super.key, required this.color, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class ActivityDistribution extends StatelessWidget {
-  const ActivityDistribution({super.key});
+  final Map<String, dynamic>? distribution;
+  const ActivityDistribution({super.key, this.distribution});
 
   @override
   Widget build(BuildContext context) {
@@ -403,46 +420,22 @@ class ActivityDistribution extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
-          _buildProgressRow('Numerology Reports', 0.78, AppColors.primary),
+          _buildProgressRow(
+            'Numerology Reports',
+            (distribution?['numerology'] ?? 0) / 100,
+            AppColors.primary,
+          ),
           const SizedBox(height: 20),
-          _buildProgressRow('Number Sales', 0.62, Colors.blue[900]!),
+          _buildProgressRow(
+            'Number Sales',
+            (distribution?['number_sales'] ?? 0) / 100,
+            Colors.blue[900]!,
+          ),
           const SizedBox(height: 20),
-          _buildProgressRow('Consultations', 0.45, AppColors.gold),
-          const SizedBox(height: 32),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Column(
-                children: [
-                  Text(
-                    '4.8k',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  Text(
-                    'HITS',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                children: [
-                  Text(
-                    '12min',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  Text(
-                    'AVG SESSION',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          _buildProgressRow(
+            'Inquiries',
+            (distribution?['inquiries'] ?? 0) / 100,
+            AppColors.gold,
           ),
         ],
       ),
@@ -485,8 +478,13 @@ class ActivityDistribution extends StatelessWidget {
 }
 
 class ChartPainter extends CustomPainter {
+  final List<dynamic> data;
+  ChartPainter({required this.data});
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (data.length < 2) return;
+
     final paint =
         Paint()
           ..color = AppColors.primary
@@ -494,48 +492,35 @@ class ChartPainter extends CustomPainter {
           ..style = PaintingStyle.stroke;
 
     final path = Path();
-    path.moveTo(0, size.height * 0.8);
-    path.quadraticBezierTo(
-      size.width * 0.2,
-      size.height * 0.6,
-      size.width * 0.4,
-      size.height * 0.75,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.6,
-      size.height * 0.9,
-      size.width * 0.8,
-      size.height * 0.5,
-    );
-    path.lineTo(size.width, size.height * 0.6);
+    double maxVal = data
+        .map((e) => double.tryParse(e['total'].toString()) ?? 0.0)
+        .fold(0.0, (m, v) => v > m ? v : m);
+    if (maxVal == 0) maxVal = 1;
+
+    final stepX = size.width / (data.length - 1);
+
+    for (int i = 0; i < data.length; i++) {
+      double val = double.tryParse(data[i]['total'].toString()) ?? 0.0;
+      double x = i * stepX;
+      double y = size.height - (val / maxVal * size.height * 0.8);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
 
     canvas.drawPath(path, paint);
-
-    final dashPaint =
-        Paint()
-          ..color = Colors.grey[300]!
-          ..strokeWidth = 2
-          ..style = PaintingStyle.stroke;
-
-    final dashPath = Path();
-    dashPath.moveTo(0, size.height * 0.9);
-    dashPath.quadraticBezierTo(
-      size.width * 0.5,
-      size.height * 0.8,
-      size.width,
-      size.height * 0.85,
-    );
-
-    // Draw dashed line (simplified)
-    canvas.drawPath(dashPath, dashPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class RecentActivityTable extends StatelessWidget {
-  const RecentActivityTable({super.key});
+  final List<dynamic>? activities;
+  const RecentActivityTable({super.key, this.activities});
 
   @override
   Widget build(BuildContext context) {
@@ -555,82 +540,37 @@ class RecentActivityTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Recent Activity',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Live tracking of system interactions and transactions',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: const Text(
-                  'View All Activity',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          const Text(
+            'Recent Activity',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
-          Column(
-            children: [
-              _buildTableHeader(),
-              const Divider(),
-              _buildTableRow(
-                '#AST-99021',
-                'Vikram Rathore',
-                'Numerology',
-                '₹15,000',
-                'Completed',
-                Colors.green,
+          if (activities == null || activities!.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text('No recent activity'),
               ),
-              _buildTableRow(
-                '#AST-99020',
-                'Priya Malhotra',
-                'VIP Number',
-                '₹85,000',
-                'Processing',
-                Colors.blue,
-              ),
-              _buildTableRow(
-                '#AST-99019',
-                'Sanjay Gupta',
-                'Inquiry',
-                '₹0',
-                'Contacted',
-                Colors.grey,
-              ),
-              _buildTableRow(
-                '#AST-99018',
-                'Ananya Verma',
-                'Numerology',
-                '₹12,000',
-                'Payment Failed',
-                Colors.red,
-              ),
-            ],
-          ),
+            )
+          else
+            Column(
+              children: [
+                _buildTableHeader(),
+                const Divider(),
+                ...activities!.map(
+                  (a) => _buildTableRow(
+                    a['id'],
+                    a['customer'],
+                    a['type'],
+                    a['amount'],
+                    a['status'],
+                    a['color'] == 'green'
+                        ? Colors.green
+                        : (a['color'] == 'blue' ? Colors.blue : Colors.grey),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -644,7 +584,7 @@ class RecentActivityTable extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              'TRANSACTION ID',
+              'ID',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -696,18 +636,6 @@ class RecentActivityTable extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            flex: 1,
-            child: Text(
-              'ACTION',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -744,27 +672,13 @@ class RecentActivityTable extends StatelessWidget {
           ),
           Expanded(
             flex: 3,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[50],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    type,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              type,
+              style: TextStyle(
+                fontSize: 11,
+                color: type == 'Payment' ? Colors.green : Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           Expanded(
@@ -796,17 +710,6 @@ class RecentActivityTable extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          const Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Icon(
-                Icons.more_vert,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
             ),
           ),
         ],

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
+import '../../core/api_service.dart';
+import '../../providers/auth_provider.dart';
+import 'package:provider/provider.dart';
+import 'dart:async';
 
 class InquiryListScreen extends StatefulWidget {
   const InquiryListScreen({super.key});
@@ -11,50 +15,67 @@ class InquiryListScreen extends StatefulWidget {
 class _InquiryListScreenState extends State<InquiryListScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
-  bool _isEmpty = false;
+  bool _isLoading = false;
+  List<dynamic> _inquiries = [];
+  int _currentPage = 1;
+  int _totalPages = 1;
+  int _totalRecords = 0;
+  Timer? _debounce;
 
-  final List<Map<String, String>> _inquiries = [
-    {
-      'id': 'INQ-5001',
-      'customer': 'Amit Shah',
-      'mobile': '+91 98250 11223',
-      'number': '99999 55555',
-      'price': '₹45,000',
-      'status': 'New',
-    },
-    {
-      'id': 'INQ-5002',
-      'customer': 'Rahul Mehta',
-      'mobile': '+91 97234 88776',
-      'number': '77777 00000',
-      'price': '₹28,500',
-      'status': 'Converted',
-    },
-    {
-      'id': 'INQ-5003',
-      'customer': 'Suresh Patel',
-      'mobile': '+91 90001 22334',
-      'number': '88888 11223',
-      'price': '₹65,000',
-      'status': 'Cancelled',
-    },
-    {
-      'id': 'INQ-5004',
-      'customer': 'Sneha Kapoor',
-      'mobile': '+91 88776 55443',
-      'number': '98765 43210',
-      'price': '₹12,000',
-      'status': 'New',
-    },
-    {
-      'id': 'INQ-5005',
-      'customer': 'Vikram Rathore',
-      'mobile': '+91 77665 44332',
-      'number': '44444 33333',
-      'price': '₹95,000',
-      'status': 'Converted',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchInquiries();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _currentPage = 1;
+        });
+        _fetchInquiries();
+      }
+    });
+  }
+
+  Future<void> _fetchInquiries() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await ApiService.getInquiries(
+        page: _currentPage,
+        search: _searchController.text,
+        status: _selectedStatus,
+      );
+
+      if (response['success']) {
+        setState(() {
+          _inquiries = response['data']['data'];
+          _currentPage = response['data']['current_page'];
+          _totalPages = response['data']['last_page'];
+          _totalRecords = response['data']['total'];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,13 +95,23 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
           const SizedBox(height: 24),
 
           // Inquiry Table
-          Expanded(child: _isEmpty ? _buildEmptyState() : _buildInquiryTable()),
+          Expanded(
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_inquiries.isEmpty
+                        ? _buildEmptyState()
+                        : _buildInquiryTable()),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildHeader() {
+    final user = context.watch<AuthProvider>().user;
+    final canCreate = user?.hasPermission('Inquiry', 'create') ?? false;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
@@ -110,7 +141,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                     ),
                   ],
                 ),
-                if (!isNarrow)
+                if (!isNarrow && canCreate)
                   ElevatedButton.icon(
                     onPressed: () => _showInquiryDialog(),
                     icon: const Icon(Icons.add, size: 20),
@@ -130,7 +161,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                   ),
               ],
             ),
-            if (isNarrow) ...[
+            if (isNarrow && canCreate) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -238,7 +269,13 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                     DropdownMenuItem(value: status, child: Text(status)),
               )
               .toList(),
-      onChanged: (value) => setState(() => _selectedStatus = value!),
+      onChanged: (value) {
+        setState(() {
+          _selectedStatus = value!;
+          _currentPage = 1;
+        });
+        _fetchInquiries();
+      },
     );
   }
 
@@ -248,7 +285,9 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
         setState(() {
           _selectedStatus = 'All';
           _searchController.clear();
+          _currentPage = 1;
         });
+        _fetchInquiries();
       },
       icon: const Icon(Icons.refresh),
       color: AppColors.textSecondary,
@@ -274,6 +313,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
   }
 
   Widget _buildInquiryTable() {
+    final user = context.watch<AuthProvider>().user;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -401,7 +441,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                           Expanded(
                             flex: 1,
                             child: Text(
-                              inq['id']!,
+                              'INQ-${inq['id']}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -411,7 +451,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                           Expanded(
                             flex: 3,
                             child: Text(
-                              inq['customer']!,
+                              inq['customer_name'] ?? '',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -422,7 +462,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              inq['mobile']!,
+                              inq['mobile_number'] ?? '',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textSecondary,
@@ -432,7 +472,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              inq['number']!,
+                              inq['selected_number'] ?? '',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -443,7 +483,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                           Expanded(
                             flex: 1,
                             child: Text(
-                              inq['price']!,
+                              '₹${inq['price']}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -455,24 +495,27 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                             flex: 2,
                             child: _buildStatusBadge(inq['status']!),
                           ),
-                          Expanded(
+                           Expanded(
                             flex: 2,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                _buildActionButton(
-                                  icon: Icons.edit_outlined,
-                                  color: Colors.blue,
-                                  tooltip: 'Edit',
-                                  onTap: () => _showInquiryDialog(inquiry: inq),
-                                ),
-                                const SizedBox(width: 8),
-                                _buildActionButton(
-                                  icon: Icons.delete_outline,
-                                  color: AppColors.statusCancelled,
-                                  tooltip: 'Delete',
-                                  onTap: () => _showDeleteConfirmation(inq),
-                                ),
+                                if (user?.hasPermission('Inquiry', 'edit') ?? false)
+                                  _buildActionButton(
+                                    icon: Icons.edit_outlined,
+                                    color: Colors.blue,
+                                    tooltip: 'Edit',
+                                    onTap: () => _showInquiryDialog(inquiry: inq),
+                                  ),
+                                if (user?.hasPermission('Inquiry', 'edit') ?? false)
+                                  const SizedBox(width: 8),
+                                if (user?.hasPermission('Inquiry', 'delete') ?? false)
+                                  _buildActionButton(
+                                    icon: Icons.delete_outline,
+                                    color: AppColors.statusCancelled,
+                                    tooltip: 'Delete',
+                                    onTap: () => _showDeleteConfirmation(inq),
+                                  ),
                               ],
                             ),
                           ),
@@ -561,54 +604,96 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Text(
-            'Showing 1-5 of 12 records',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          Text(
+            'Showing ${(_currentPage - 1) * 10 + 1}-${((_currentPage - 1) * 10 + _inquiries.length)} of $_totalRecords records',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(width: 24),
-          _buildPageArrow(Icons.chevron_left, enabled: false),
+          _buildPageArrow(
+            Icons.chevron_left,
+            enabled: _currentPage > 1,
+            onTap: () {
+              if (_currentPage > 1) {
+                setState(() => _currentPage--);
+                _fetchInquiries();
+              }
+            },
+          ),
           const SizedBox(width: 8),
-          _buildPageNumber(1, active: true),
-          _buildPageNumber(2),
+          _buildPageNumber(_currentPage, active: true),
+          if (_currentPage < _totalPages)
+            _buildPageNumber(
+              _currentPage + 1,
+              onTap: () {
+                setState(() => _currentPage++);
+                _fetchInquiries();
+              },
+            ),
           const SizedBox(width: 8),
-          _buildPageArrow(Icons.chevron_right, enabled: true),
+          _buildPageArrow(
+            Icons.chevron_right,
+            enabled: _currentPage < _totalPages,
+            onTap: () {
+              if (_currentPage < _totalPages) {
+                setState(() => _currentPage++);
+                _fetchInquiries();
+              }
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPageArrow(IconData icon, {bool enabled = true}) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[200]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        icon,
-        size: 16,
-        color: enabled ? AppColors.textPrimary : Colors.grey[300],
+  Widget _buildPageArrow(
+    IconData icon, {
+    bool enabled = true,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[200]!),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: enabled ? AppColors.textPrimary : Colors.grey[300],
+        ),
       ),
     );
   }
 
-  Widget _buildPageNumber(int number, {bool active = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      alignment: Alignment.center,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: active ? AppColors.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border: active ? null : Border.all(color: Colors.grey[200]!),
-      ),
-      child: Text(
-        '$number',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: active ? FontWeight.bold : FontWeight.normal,
-          color: active ? Colors.white : AppColors.textPrimary,
+  Widget _buildPageNumber(
+    int number, {
+    bool active = false,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: active ? null : onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: active ? null : Border.all(color: Colors.grey[200]!),
+        ),
+        child: Text(
+          '$number',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            color: active ? Colors.white : AppColors.textPrimary,
+          ),
         ),
       ),
     );
@@ -648,7 +733,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
     );
   }
 
-  void _showDeleteConfirmation(Map<String, String> inquiry) {
+  void _showDeleteConfirmation(Map<String, dynamic> inquiry) {
     showDialog(
       context: context,
       builder:
@@ -728,7 +813,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Are you sure you want to delete inquiry ${inquiry['id']} for ${inquiry['customer']}?',
+                          'Are you sure you want to delete inquiry INQ-${inquiry['id']} for ${inquiry['customer_name']}?',
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textPrimary,
@@ -764,20 +849,29 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _inquiries.remove(inquiry);
-                                    if (_inquiries.isEmpty) _isEmpty = true;
-                                  });
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Inquiry ${inquiry['id']} deleted',
+                                onPressed: () async {
+                                  try {
+                                    await ApiService.deleteInquiry(
+                                      inquiry['id'],
+                                    );
+                                    Navigator.pop(context);
+                                    _fetchInquiries();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Inquiry INQ-${inquiry['id']} deleted',
+                                        ),
+                                        backgroundColor: Colors.red,
                                       ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red,
@@ -808,22 +902,14 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
     );
   }
 
-  void _showInquiryDialog({Map<String, String>? inquiry}) {
+  void _showInquiryDialog({Map<String, dynamic>? inquiry}) {
     showDialog(
       context: context,
       builder:
           (context) => InquiryModal(
             inquiry: inquiry,
-            onSave: (data) {
-              setState(() {
-                if (inquiry != null) {
-                  final index = _inquiries.indexOf(inquiry);
-                  _inquiries[index] = data;
-                } else {
-                  _inquiries.insert(0, data);
-                  _isEmpty = false;
-                }
-              });
+            onSave: () {
+              _fetchInquiries();
             },
           ),
     );
@@ -831,8 +917,8 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
 }
 
 class InquiryModal extends StatefulWidget {
-  final Map<String, String>? inquiry;
-  final Function(Map<String, String>) onSave;
+  final Map<String, dynamic>? inquiry;
+  final VoidCallback onSave;
 
   const InquiryModal({super.key, this.inquiry, required this.onSave});
 
@@ -847,29 +933,31 @@ class _InquiryModalState extends State<InquiryModal> {
   late TextEditingController _mobileController;
   late TextEditingController _numberController;
   late TextEditingController _priceController;
+  bool _isSaving = false;
+  bool _isLoadingCustomers = false;
 
   @override
   void initState() {
     super.initState();
     _selectedStatus = widget.inquiry?['status'] ?? 'New';
     _customerController = TextEditingController(
-      text: widget.inquiry?['customer'] ?? '',
+      text: widget.inquiry?['customer_name'] ?? '',
     );
     _mobileController = TextEditingController(
-      text: widget.inquiry?['mobile'] ?? '',
+      text: widget.inquiry?['mobile_number'] ?? '',
     );
     _numberController = TextEditingController(
-      text: widget.inquiry?['number'] ?? '',
+      text: widget.inquiry?['selected_number'] ?? '',
     );
     _priceController = TextEditingController(
-      text:
-          widget.inquiry?['price']?.replaceAll('₹', '').replaceAll(',', '') ??
-          '',
+      text: widget.inquiry?['price']?.toString() ?? '',
     );
   }
 
   @override
   void dispose() {
+    // Only dispose if we are not using Autocomplete's internal controller
+    // but here we are using it for editing, so we keep it.
     _customerController.dispose();
     _mobileController.dispose();
     _numberController.dispose();
@@ -973,7 +1061,7 @@ class _InquiryModalState extends State<InquiryModal> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _buildTextField(_customerController, 'Enter customer name'),
+                    _buildCustomerAutocomplete(),
 
                     const SizedBox(height: 20),
                     Row(
@@ -1090,31 +1178,7 @@ class _InquiryModalState extends State<InquiryModal> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                widget.onSave({
-                                  'id':
-                                      widget.inquiry?['id'] ??
-                                      'INQ-${5000 + DateTime.now().millisecond}',
-                                  'customer': _customerController.text,
-                                  'mobile': _mobileController.text,
-                                  'number': _numberController.text,
-                                  'price': '₹${_priceController.text}',
-                                  'status': _selectedStatus,
-                                });
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      isEditing
-                                          ? 'Inquiry updated successfully!'
-                                          : 'Inquiry added successfully!',
-                                    ),
-                                    backgroundColor: AppColors.primary,
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: _isSaving ? null : _saveInquiry,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -1124,12 +1188,24 @@ class _InquiryModalState extends State<InquiryModal> {
                               ),
                               elevation: 0,
                             ),
-                            child: Text(
-                              isEditing ? 'Save Changes' : 'Save Inquiry',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child:
+                                _isSaving
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                    : Text(
+                                      isEditing
+                                          ? 'Save Changes'
+                                          : 'Save Inquiry',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                           ),
                         ),
                       ],
@@ -1141,6 +1217,158 @@ class _InquiryModalState extends State<InquiryModal> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _saveInquiry() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+      try {
+        final data = {
+          'customer_name': _customerController.text,
+          'mobile_number': _mobileController.text,
+          'selected_number': _numberController.text,
+          'price': _priceController.text,
+          'status': _selectedStatus,
+        };
+
+        if (widget.inquiry != null) {
+          await ApiService.updateInquiry(widget.inquiry!['id'], data);
+        } else {
+          await ApiService.createInquiry(data);
+        }
+
+        widget.onSave();
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.inquiry != null
+                    ? 'Inquiry updated successfully!'
+                    : 'Inquiry added successfully!',
+              ),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Widget _buildCustomerAutocomplete() {
+    return Autocomplete<Map<String, dynamic>>(
+      optionsBuilder: (TextEditingValue textEditingValue) async {
+        if (textEditingValue.text.isEmpty) {
+          return const Iterable<Map<String, dynamic>>.empty();
+        }
+
+        try {
+          setState(() => _isLoadingCustomers = true);
+          final response = await ApiService.getCustomers(
+            page: 1,
+            search: textEditingValue.text,
+          );
+
+          if (response['data'] != null) {
+            final List<dynamic> data = response['data'];
+            return data.map((e) => Map<String, dynamic>.from(e));
+          }
+        } catch (e) {
+          debugPrint('Autocomplete search error: $e');
+        } finally {
+          if (mounted) setState(() => _isLoadingCustomers = false);
+        }
+
+        return const Iterable<Map<String, dynamic>>.empty();
+      },
+      displayStringForOption: (Map<String, dynamic> option) => option['name'],
+      onSelected: (Map<String, dynamic> selection) {
+        setState(() {
+          _customerController.text = selection['name'];
+          _mobileController.text = selection['mobile'] ?? '';
+        });
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        // Synchronize our manual controller with Autocomplete's internal controller
+        if (_customerController.text.isNotEmpty && controller.text.isEmpty) {
+          controller.text = _customerController.text;
+        }
+
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          onFieldSubmitted: (value) => onFieldSubmitted(),
+          onChanged: (value) => _customerController.text = value,
+          validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
+          decoration: InputDecoration(
+            hintText: 'Search or enter customer name',
+            filled: true,
+            fillColor: Colors.grey[50],
+            suffixIcon:
+                _isLoadingCustomers
+                    ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.person_search_outlined),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 552, // Match modal width minus padding
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (BuildContext context, int index) {
+                  final Map<String, dynamic> option = options.elementAt(index);
+                  return ListTile(
+                    title: Text(option['name']),
+                    subtitle: Text(option['mobile'] ?? 'No phone'),
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

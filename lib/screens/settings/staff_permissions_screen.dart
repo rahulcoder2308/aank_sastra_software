@@ -80,6 +80,15 @@ class _StaffPermissionsScreenState extends State<StaffPermissionsScreen> {
   void _togglePermission(String module, String action, bool? value) {
     setState(() {
       _permissions[module]![action] = value ?? false;
+
+      // Logic: If Create, Edit, or Delete is selected, View must be active and forced
+      if (action == 'create' || action == 'edit' || action == 'delete') {
+        if (_permissions[module]!['create']! ||
+            _permissions[module]!['edit']! ||
+            _permissions[module]!['delete']!) {
+          _permissions[module]!['view'] = true;
+        }
+      }
     });
   }
 
@@ -462,10 +471,20 @@ class _StaffPermissionsScreenState extends State<StaffPermissionsScreen> {
   }
 
   Widget _buildCheckbox(String module, String action) {
+    // If it's a 'view' action, disable it if any of 'create', 'edit', or 'delete' are true
+    bool isForced = false;
+    if (action == 'view') {
+      isForced =
+          _permissions[module]!['create']! ||
+          _permissions[module]!['edit']! ||
+          _permissions[module]!['delete']!;
+    }
+
     return Checkbox(
       value: _permissions[module]![action],
-      onChanged: (val) => _togglePermission(module, action, val),
-      activeColor: AppColors.primary,
+      onChanged:
+          isForced ? null : (val) => _togglePermission(module, action, val),
+      activeColor: isForced ? Colors.grey : AppColors.primary,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
     );
   }

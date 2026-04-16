@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
+import '../../core/api_service.dart';
+import '../../providers/auth_provider.dart';
+import 'package:provider/provider.dart';
+import 'dart:async';
 
 class NumberInventoryScreen extends StatefulWidget {
   const NumberInventoryScreen({super.key});
@@ -12,58 +16,66 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedType = 'All';
   String _selectedStatus = 'All';
-  bool _isEmpty = false;
+  bool _isLoading = false;
+  List<dynamic> _inventory = [];
+  int _currentPage = 1;
+  int _totalPages = 1;
+  int _totalRecords = 0;
+  Timer? _debounce;
 
-  final List<Map<String, String>> _inventory = [
-    {
-      'number': '99999 55555',
-      'type': 'VIP',
-      'price': '₹1,25,000',
-      'status': 'Available',
-    },
-    {
-      'number': '98000 00001',
-      'type': 'Normal',
-      'price': '₹15,000',
-      'status': 'Sold',
-    },
-    {
-      'number': '77777 00000',
-      'type': 'VIP',
-      'price': '₹85,000',
-      'status': 'Available',
-    },
-    {
-      'number': '90000 00009',
-      'type': 'VIP',
-      'price': '₹1,50,000',
-      'status': 'Available',
-    },
-    {
-      'number': '98765 43210',
-      'type': 'Normal',
-      'price': '₹12,000',
-      'status': 'Available',
-    },
-    {
-      'number': '88888 11111',
-      'type': 'VIP',
-      'price': '₹2,00,000',
-      'status': 'Sold',
-    },
-    {
-      'number': '95555 95555',
-      'type': 'Normal',
-      'price': '₹25,000',
-      'status': 'Available',
-    },
-    {
-      'number': '91111 91111',
-      'type': 'VIP',
-      'price': '₹1,10,000',
-      'status': 'Available',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchInventory();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _currentPage = 1);
+        _fetchInventory();
+      }
+    });
+  }
+
+  Future<void> _fetchInventory() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await ApiService.getInventory(
+        page: _currentPage,
+        search: _searchController.text,
+        category: _selectedType,
+        status: _selectedStatus,
+      );
+
+      if (response['success']) {
+        setState(() {
+          _inventory = response['data']['data'];
+          _currentPage = response['data']['current_page'];
+          _totalPages = response['data']['last_page'];
+          _totalRecords = response['data']['total'];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +96,12 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
 
           // Table
           Expanded(
-            child: _isEmpty ? _buildEmptyState() : _buildInventoryTable(),
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_inventory.isEmpty
+                        ? _buildEmptyState()
+                        : _buildInventoryTable()),
           ),
         ],
       ),
@@ -92,6 +109,9 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
   }
 
   Widget _buildHeader() {
+    final user = context.watch<AuthProvider>().user;
+    final canCreate = user?.hasPermission('Numbers', 'create') ?? false;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
@@ -121,7 +141,7 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                     ),
                   ],
                 ),
-                if (!isNarrow)
+                if (!isNarrow && canCreate)
                   ElevatedButton.icon(
                     onPressed: () => _showNumberDialog(),
                     icon: const Icon(Icons.add, size: 20),
@@ -141,7 +161,7 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                   ),
               ],
             ),
-            if (isNarrow) ...[
+            if (isNarrow && canCreate) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -245,9 +265,15 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
   Widget _buildTypeFilter() {
     return _buildFilterDropdown(
       'Type',
-      ['All', 'VIP', 'Normal'],
+      ['All', 'Normal', 'VIP'],
       _selectedType,
-      (v) => setState(() => _selectedType = v!),
+      (v) {
+        setState(() {
+          _selectedType = v!;
+          _currentPage = 1;
+        });
+        _fetchInventory();
+      },
     );
   }
 
@@ -256,7 +282,13 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
       'Status',
       ['All', 'Available', 'Sold'],
       _selectedStatus,
-      (v) => setState(() => _selectedStatus = v!),
+      (v) {
+        setState(() {
+          _selectedStatus = v!;
+          _currentPage = 1;
+        });
+        _fetchInventory();
+      },
     );
   }
 
@@ -267,7 +299,9 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
           _selectedType = 'All';
           _selectedStatus = 'All';
           _searchController.clear();
+          _currentPage = 1;
         });
+        _fetchInventory();
       },
       icon: const Icon(Icons.refresh),
       color: AppColors.textSecondary,
@@ -304,6 +338,7 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
   }
 
   Widget _buildInventoryTable() {
+    final user = context.watch<AuthProvider>().user;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -376,6 +411,17 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                   Expanded(
                     flex: 2,
                     child: Text(
+                      'ADDED BY',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
                       'ACTIONS',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -419,12 +465,12 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                           ),
                           Expanded(
                             flex: 2,
-                            child: _buildTypeBadge(item['type']!),
+                            child: _buildTypeBadge(item['category']!),
                           ),
                           Expanded(
                             flex: 2,
                             child: Text(
-                              item['price']!,
+                              '₹${item['price']}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -438,22 +484,35 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                           ),
                           Expanded(
                             flex: 2,
+                            child: Text(
+                              item['added_by']?['name'] ?? 'System',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                _buildActionButton(
-                                  icon: Icons.edit_outlined,
-                                  color: Colors.blue,
-                                  tooltip: 'Edit',
-                                  onTap: () => _showNumberDialog(number: item),
-                                ),
-                                const SizedBox(width: 8),
-                                _buildActionButton(
-                                  icon: Icons.delete_outline,
-                                  color: AppColors.statusSold,
-                                  tooltip: 'Delete',
-                                  onTap: () => _showDeleteConfirmation(item),
-                                ),
+                                if (user?.hasPermission('Numbers', 'edit') ?? false)
+                                  _buildActionButton(
+                                    icon: Icons.edit_outlined,
+                                    color: Colors.blue,
+                                    tooltip: 'Edit',
+                                    onTap: () => _showNumberDialog(number: item),
+                                  ),
+                                if (user?.hasPermission('Numbers', 'edit') ?? false)
+                                  const SizedBox(width: 8),
+                                if (user?.hasPermission('Numbers', 'delete') ?? false)
+                                  _buildActionButton(
+                                    icon: Icons.delete_outline,
+                                    color: AppColors.statusSold,
+                                    tooltip: 'Delete',
+                                    onTap: () => _showDeleteConfirmation(item),
+                                  ),
                               ],
                             ),
                           ),
@@ -562,54 +621,96 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Text(
-            'Showing 1-8 of 156 numbers',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          Text(
+            'Showing ${(_currentPage - 1) * 10 + 1}-${((_currentPage - 1) * 10 + _inventory.length)} of $_totalRecords records',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(width: 24),
-          _buildPageArrow(Icons.chevron_left, enabled: false),
+          _buildPageArrow(
+            Icons.chevron_left,
+            enabled: _currentPage > 1,
+            onTap: () {
+              if (_currentPage > 1) {
+                setState(() => _currentPage--);
+                _fetchInventory();
+              }
+            },
+          ),
           const SizedBox(width: 8),
-          _buildPageNumber(1, active: true),
-          _buildPageNumber(2),
+          _buildPageNumber(_currentPage, active: true),
+          if (_currentPage < _totalPages)
+            _buildPageNumber(
+              _currentPage + 1,
+              onTap: () {
+                setState(() => _currentPage++);
+                _fetchInventory();
+              },
+            ),
           const SizedBox(width: 8),
-          _buildPageArrow(Icons.chevron_right, enabled: true),
+          _buildPageArrow(
+            Icons.chevron_right,
+            enabled: _currentPage < _totalPages,
+            onTap: () {
+              if (_currentPage < _totalPages) {
+                setState(() => _currentPage++);
+                _fetchInventory();
+              }
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPageArrow(IconData icon, {bool enabled = true}) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[200]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        icon,
-        size: 16,
-        color: enabled ? AppColors.textPrimary : Colors.grey[300],
+  Widget _buildPageArrow(
+    IconData icon, {
+    bool enabled = true,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[200]!),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: enabled ? AppColors.textPrimary : Colors.grey[300],
+        ),
       ),
     );
   }
 
-  Widget _buildPageNumber(int number, {bool active = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      alignment: Alignment.center,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: active ? AppColors.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border: active ? null : Border.all(color: Colors.grey[200]!),
-      ),
-      child: Text(
-        '$number',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: active ? FontWeight.bold : FontWeight.normal,
-          color: active ? Colors.white : AppColors.textPrimary,
+  Widget _buildPageNumber(
+    int number, {
+    bool active = false,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: active ? null : onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: active ? null : Border.all(color: Colors.grey[200]!),
+        ),
+        child: Text(
+          '$number',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            color: active ? Colors.white : AppColors.textPrimary,
+          ),
         ),
       ),
     );
@@ -653,7 +754,7 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
     );
   }
 
-  void _showDeleteConfirmation(Map<String, String> item) {
+  void _showDeleteConfirmation(Map<String, dynamic> item) {
     showDialog(
       context: context,
       builder:
@@ -769,19 +870,29 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _inventory.remove(item);
-                                    if (_inventory.isEmpty) _isEmpty = true;
-                                  });
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text('Number ${item['number']} deleted'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                onPressed: () async {
+                                  try {
+                                    await ApiService.deleteInventoryItem(
+                                      item['id'],
+                                    );
+                                    Navigator.pop(context);
+                                    _fetchInventory();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Number ${item['number']} deleted',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red,
@@ -812,22 +923,14 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
     );
   }
 
-  void _showNumberDialog({Map<String, String>? number}) {
+  void _showNumberDialog({Map<String, dynamic>? number}) {
     showDialog(
       context: context,
       builder:
           (context) => NumberModal(
             numberData: number,
-            onSave: (data) {
-              setState(() {
-                if (number != null) {
-                  final index = _inventory.indexOf(number);
-                  _inventory[index] = data;
-                } else {
-                  _inventory.insert(0, data);
-                  _isEmpty = false;
-                }
-              });
+            onSave: () {
+              _fetchInventory();
             },
           ),
     );
@@ -835,8 +938,8 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
 }
 
 class NumberModal extends StatefulWidget {
-  final Map<String, String>? numberData;
-  final Function(Map<String, String>) onSave;
+  final Map<String, dynamic>? numberData;
+  final VoidCallback onSave;
 
   const NumberModal({super.key, this.numberData, required this.onSave});
 
@@ -850,15 +953,18 @@ class _NumberModalState extends State<NumberModal> {
   late String _selectedStatus;
   late TextEditingController _numberController;
   late TextEditingController _priceController;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedType = widget.numberData?['type'] ?? 'Normal';
+    _selectedType = widget.numberData?['category'] ?? 'Normal';
     _selectedStatus = widget.numberData?['status'] ?? 'Available';
-    _numberController = TextEditingController(text: widget.numberData?['number'] ?? '');
+    _numberController = TextEditingController(
+      text: widget.numberData?['number'] ?? '',
+    );
     _priceController = TextEditingController(
-      text: widget.numberData?['price']?.replaceAll('₹', '').replaceAll(',', '') ?? '',
+      text: widget.numberData?['price']?.toString() ?? '',
     );
   }
 
@@ -909,7 +1015,9 @@ class _NumberModalState extends State<NumberModal> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      isEditing ? Icons.edit_note_outlined : Icons.format_list_numbered_outlined,
+                      isEditing
+                          ? Icons.edit_note_outlined
+                          : Icons.format_list_numbered_outlined,
                       color: AppColors.primary,
                     ),
                   ),
@@ -966,7 +1074,11 @@ class _NumberModalState extends State<NumberModal> {
                             children: [
                               _buildLabel('PRICE (₹)'),
                               const SizedBox(height: 8),
-                              _buildTextField(_priceController, 'e.g. 15000', isNumeric: true),
+                              _buildTextField(
+                                _priceController,
+                                'e.g. 15000',
+                                isNumeric: true,
+                              ),
                             ],
                           ),
                         ),
@@ -998,7 +1110,9 @@ class _NumberModalState extends State<NumberModal> {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        const Expanded(child: SizedBox()), // Placeholder for layout
+                        const Expanded(
+                          child: SizedBox(),
+                        ), // Placeholder for layout
                       ],
                     ),
 
@@ -1021,27 +1135,7 @@ class _NumberModalState extends State<NumberModal> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                widget.onSave({
-                                  'number': _numberController.text,
-                                  'type': _selectedType,
-                                  'price': '₹${_priceController.text}',
-                                  'status': _selectedStatus,
-                                });
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      isEditing
-                                          ? 'Number updated successfully!'
-                                          : 'Number added successfully!',
-                                    ),
-                                    backgroundColor: AppColors.primary,
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: _isSaving ? null : _saveItem,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -1051,10 +1145,24 @@ class _NumberModalState extends State<NumberModal> {
                               ),
                               elevation: 0,
                             ),
-                            child: Text(
-                              isEditing ? 'Save Changes' : 'Save Number',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                            child:
+                                _isSaving
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                    : Text(
+                                      isEditing
+                                          ? 'Save Changes'
+                                          : 'Save Number',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                           ),
                         ),
                       ],
@@ -1069,6 +1177,49 @@ class _NumberModalState extends State<NumberModal> {
     );
   }
 
+  Future<void> _saveItem() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+      try {
+        final data = {
+          'number': _numberController.text,
+          'price': _priceController.text,
+          'category': _selectedType,
+          'status': _selectedStatus,
+        };
+
+        if (widget.numberData != null) {
+          await ApiService.updateInventoryItem(widget.numberData!['id'], data);
+        } else {
+          await ApiService.createInventoryItem(data);
+        }
+
+        widget.onSave();
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.numberData != null
+                    ? 'Number updated successfully!'
+                    : 'Number added successfully!',
+              ),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    }
+  }
+
   Widget _buildLabel(String label) {
     return Text(
       label,
@@ -1081,7 +1232,11 @@ class _NumberModalState extends State<NumberModal> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, {bool isNumeric = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint, {
+    bool isNumeric = false,
+  }) {
     return TextFormField(
       controller: controller,
       keyboardType: isNumeric ? TextInputType.number : TextInputType.text,

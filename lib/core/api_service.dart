@@ -510,4 +510,301 @@ class ApiService {
       throw Exception(data['message'] ?? 'Failed to delete customer');
     }
   }
+
+  // --- INQUIRIES ---
+  static Future<Map<String, dynamic>> getInquiries({
+    int page = 1,
+    String? search,
+    String? status,
+  }) async {
+    final queryParams = {
+      'page': page.toString(),
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (status != null && status != 'All') 'status': status,
+    };
+
+    final uri = Uri.parse(
+      '$baseUrl/inquiries',
+    ).replace(queryParameters: queryParams);
+    final url = uri.toString();
+    _logRequest("GET", url);
+
+    final response = await http.get(uri, headers: await getHeaders());
+
+    _logResponse("GET", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch inquiries');
+    }
+  }
+
+  static Future<Map<String, dynamic>> createInquiry(
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/inquiries';
+    _logRequest("POST", url, body: data);
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("POST", url, response);
+
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to create inquiry');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateInquiry(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/inquiries/$id';
+    _logRequest("PUT", url, body: data);
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("PUT", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to update inquiry');
+    }
+  }
+
+  static Future<void> deleteInquiry(int id) async {
+    final url = '$baseUrl/inquiries/$id';
+    _logRequest("DELETE", url);
+
+    final response = await http.delete(
+      Uri.parse(url),
+      headers: await getHeaders(),
+    );
+
+    _logResponse("DELETE", url, response);
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete inquiry');
+    }
+  }
+
+  // --- INVENTORY ---
+  static Future<Map<String, dynamic>> getInventory({
+    int page = 1,
+    String? search,
+    String? category,
+    String? status,
+  }) async {
+    final queryParams = {
+      'page': page.toString(),
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (category != null && category != 'All') 'category': category,
+      if (status != null && status != 'All') 'status': status,
+    };
+
+    final uri = Uri.parse(
+      '$baseUrl/inventory',
+    ).replace(queryParameters: queryParams);
+    final url = uri.toString();
+    _logRequest("GET", url);
+
+    final response = await http.get(uri, headers: await getHeaders());
+
+    _logResponse("GET", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch inventory');
+    }
+  }
+
+  static Future<Map<String, dynamic>> createInventoryItem(
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/inventory';
+    _logRequest("POST", url, body: data);
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("POST", url, response);
+
+    if (response.statusCode == 211 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to create inventory item');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateInventoryItem(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/inventory/$id';
+    _logRequest("PUT", url, body: data);
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("PUT", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to update inventory item');
+    }
+  }
+
+  static Future<void> deleteInventoryItem(int id) async {
+    final url = '$baseUrl/inventory/$id';
+    _logRequest("DELETE", url);
+
+    final response = await http.delete(
+      Uri.parse(url),
+      headers: await getHeaders(),
+    );
+
+    _logResponse("DELETE", url, response);
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete inventory item');
+    }
+  }
+
+  // --- PAYMENTS ---
+  static Future<Map<String, dynamic>> getPayments({
+    int page = 1,
+    String? search,
+    String? mode,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final queryParams = {
+      'page': page.toString(),
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (mode != null && mode != 'All') 'mode': mode,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+    };
+
+    final uri = Uri.parse(
+      '$baseUrl/payments',
+    ).replace(queryParameters: queryParams);
+    final url = uri.toString();
+    _logRequest("GET", url);
+
+    final response = await http.get(uri, headers: await getHeaders());
+
+    _logResponse("GET", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch payments');
+    }
+  }
+
+  static Future<Map<String, dynamic>> createPayment(
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/payments';
+    _logRequest("POST", url, body: data);
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("POST", url, response);
+
+    if (response.statusCode == 211 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to create payment');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updatePayment(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/payments/$id';
+    _logRequest("PUT", url, body: data);
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("PUT", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to update payment');
+    }
+  }
+
+  static Future<void> deletePayment(int id) async {
+    final url = '$baseUrl/payments/$id';
+    _logRequest("DELETE", url);
+
+    final response = await http.delete(
+      Uri.parse(url),
+      headers: await getHeaders(),
+    );
+
+    _logResponse("DELETE", url, response);
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete payment');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getDashboardStats() async {
+    const url = '$baseUrl/dashboard';
+    _logRequest("GET", url);
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: await getHeaders(),
+    );
+
+    _logResponse("GET", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch dashboard stats');
+    }
+  }
 }
