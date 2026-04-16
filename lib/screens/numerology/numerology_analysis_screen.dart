@@ -713,15 +713,14 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory = await getTemporaryDirectory();
-      final pdfPath =
-          await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
+      final directory = Platform.isWindows ? await getApplicationDocumentsDirectory() : await getTemporaryDirectory();
+      final pdfPath = await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'Mobile_Analysis_$mobile.pdf',
+        // On Windows, sharing often works better with just the file to ensure attachments go through
+        await Share.shareXFiles(
+          [XFile(pdfPath.path, name: 'Mobile_Analysis.pdf', mimeType: 'application/pdf')],
         );
       } else {
         await Share.shareXFiles(
@@ -2719,17 +2718,13 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory = await getTemporaryDirectory();
-      final pdfPath =
-          await File(
-            '${directory.path}/name_analysis_${name.replaceAll(' ', '_')}.pdf',
-          ).create();
+      final directory = Platform.isWindows ? await getApplicationDocumentsDirectory() : await getTemporaryDirectory();
+      final pdfPath = await File('${directory.path}/name_analysis_${name.replaceAll(' ', '_')}.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'Name_Analysis_${name.replaceAll(' ', '_')}.pdf',
+        await Share.shareXFiles(
+          [XFile(pdfPath.path, name: 'Name_Analysis.pdf', mimeType: 'application/pdf')],
         );
       } else {
         await Share.shareXFiles(
@@ -2951,17 +2946,13 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory = await getTemporaryDirectory();
-      final pdfPath =
-          await File(
-            '${directory.path}/dob_analysis_${dob.replaceAll('/', '_')}.pdf',
-          ).create();
+      final directory = Platform.isWindows ? await getApplicationDocumentsDirectory() : await getTemporaryDirectory();
+      final pdfPath = await File('${directory.path}/dob_analysis_${dob.replaceAll('/', '_')}.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'DOB_Analysis_${dob.replaceAll('/', '_')}.pdf',
+        await Share.shareXFiles(
+          [XFile(pdfPath.path, name: 'DOB_Analysis.pdf', mimeType: 'application/pdf')],
         );
       } else {
         await Share.shareXFiles(
