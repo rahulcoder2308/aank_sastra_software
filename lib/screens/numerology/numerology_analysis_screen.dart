@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/app_colors.dart';
 import '../../core/localization/language_provider.dart';
 import '../../core/api_service.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class NumerologyAnalysisScreen extends StatefulWidget {
   const NumerologyAnalysisScreen({super.key});
@@ -50,38 +52,151 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
   String _gender = 'Male';
   Set<int> _manualGridNumbers = {};
 
-  // DR/CO for Combination Analysis
+  final Map<String, Map<String, String>> _repeatingPatterns = {
+    '111': {
+      'en':
+          'Very talkative, good for business (people who are lacking to express, lack of confidence) ending should be 111. energetic people, saucerful in job and business',
+      'gu':
+          'ખૂબ જ વાચાળ, વ્યવસાય માટે સારું (જે લોકો વ્યક્ત કરવામાં અસમર્થ હોય છે, આત્મવિશ્વાસનો અભાવ હોય છે) અંત 111 હોવો જોઈએ. મહેનતુ લોકો, નોકરી અને વ્યવસાયમાં રકાબી.',
+      'hi':
+          'बहुत बातूनी, व्यापार के लिए अच्छा (जिन लोगों में अभिव्यक्ति की कमी है, आत्मविश्वास की कमी है) अंत 111 होना चाहिए। ऊर्जावान लोग, नौकरी और व्यापार में तत्पर',
+    },
+    '1111': {
+      'en':
+          'Person will become emotional and sometime he will be a Confusing person, He will take talk unnecessary',
+      'gu':
+          'વ્યક્તિ લાગણીશીલ બનશે અને ક્યારેક તે મૂંઝવણભર્યો વ્યક્તિ બનશે, તે બિનજરૂરી વાતોને ધ્યાનમાં લેશે.',
+      'hi':
+          'व्यक्ति भावुक हो जाएगा और कभी-कभी वह भ्रमित करने वाला व्यक्ति हो जाएगा, वह अनावश्यक बातों को लेगा',
+    },
+    '222': {
+      'en': 'Higher expectations from others, sensitive, Unhappy',
+      'gu': 'બીજાઓ પાસેથી વધારે અપેક્ષાઓ, સંવેદનશીલ, નાખુશ',
+      'hi': 'दूसरों से अधिक अपेक्षाएं, संवेदनशील, अप्रसन्न',
+    },
+    '2222': {
+      'en':
+          'sensitive and emotional people, little unhappy, less active, they always remain in their own world (Day dreamer). Struggle is personal life.',
+      'gu':
+          'સંવેદનશીલ અને લાગણીશીલ લોકો, ઓછા નાખુશ, ઓછા સક્રિય, તેઓ હંમેશા પોતાની દુનિયામાં રહે છે (ડેડ્રીમર્સ). સંઘર્ષ એ અંગત જીવન છે.',
+      'hi':
+          'संवेदनशील और भावुक लोग, थोड़े दुखी, कम सक्रिय, हमेशा अपनी ही दुनिया में रहते हैं (दिवास्वप्नदर्शी)। संघर्ष निजी जीवन है।',
+    },
+    '333': {
+      'en':
+          'Imaginative but difficult to relate to people They don\'t listen to anyone, argue with other',
+      'gu':
+          'કલ્પનાશીલ પણ લોકો સાથે સંબંધ બાંધવો મુશ્કેલ તેઓ કોઈનું સાંભળતા નથી, બીજા સાથે દલીલ કરતા નથી.',
+      'hi':
+          'कल्पनाशील लेकिन लोगों से संबंध बनाना मुश्किल वे किसी की नहीं सुनते, दूसरों से बहस करते हैं',
+    },
+    '3333': {
+      'en': 'They are fearful, low confidence, can\'t complete',
+      'gu': 'તેઓ ભયભીત છે, આત્મવિશ્વાસ ઓછો છે, પૂર્ણ કરી શકતા નથી',
+      'hi': 'वे भयभीत हैं, आत्मविश्वास कम है, पूरा नहीं कर सकते',
+    },
+    '444': {
+      'en':
+          'Good planners, very punctual. They always rich to their deadlines. Sometime misuses of power and intelligence. It creates problem to whom it is not required to those field.',
+      'gu':
+          'સારા આયોજકો, ખૂબ જ સમયના પાબંદ. તેઓ હંમેશા તેમની સમયમર્યાદાનું પાલન કરે છે. ક્યારેક સત્તા અને બુદ્ધિનો દુરુપયોગ કરે છે. તે એવા લોકો માટે સમસ્યા ઊભી કરે છે જેમને તે ક્ષેત્રમાં જવાની જરૂર નથી.',
+      'hi':
+          'अच्छे योजनाकार, बहुत समयनिष्ठ। वे हमेशा अपनी समयसीमा का ध्यान रखते हैं। कभी-कभी वे शक्ति और बुद्धि का दुरुपयोग करते हैं। यह उन लोगों के लिए समस्या पैदा करता है जिन्हें इसकी आवश्यकता नहीं होती।',
+    },
+    '4444': {
+      'en':
+          'Overthinkers, they lose good opportunities personally and professionally. They talk too much time and take lots of time to do work. Lazy and wake up late, always stay away from work, can\'t handle finance They can\'t take good decisions',
+      'gu':
+          'વધુ પડતું વિચારનારા, તેઓ વ્યક્તિગત અને વ્યવસાયિક રીતે સારી તકો ગુમાવે છે. તેઓ ખૂબ વધારે વાતો કરે છે અને કામ કરવામાં ઘણો સમય લે છે. આળસુ અને મોડા સુધી જાગે છે, હંમેશા કામથી દૂર રહે છે, નાણાકીય બાબતો સંભાળી શકતા નથી તેઓ સારા નિર્ણયો લઈ શકતા નથી.',
+      'hi':
+          'बहुत ज़्यादा सोचने वाले, वे व्यक्तिगत और पेशेवर रूप से अच्छे अवसर खो देते हैं। वे बहुत ज़्यादा बात करते हैं और काम करने में बहुत समय लगाते हैं। आलसी और देर से उठते हैं, हमेशा काम से दूर रहते हैं, वित्त को संभाल नहीं पाते हैं वे अच्छे निर्णय नहीं ले पाते हैं',
+    },
+    '555': {
+      'en':
+          'They speak anything from their mind. Irrespective of time and spent their energy and knowledge in wrong place, good sense of humour, take risks. sometimes it can give stomach related issuer.',
+      'gu':
+          'તેઓ મનથી કંઈ પણ બોલે છે. સમય ગમે તે હોય અને પોતાની શક્તિ અને જ્ઞાન ખોટી જગ્યાએ ખર્ચ કરે છે, સારી રમૂજવૃત્તિ ધરાવે છે, જોખમ લે છે. ક્યારેક તે પેટ સંબંધિત સમસ્યા પેદા કરી શકે છે.',
+      'hi':
+          'वे अपने मन की बात कह देते हैं। समय की परवाह किए बिना अपनी ऊर्जा और ज्ञान को गलत जगह खर्च करते हैं, हास्य की अच्छी समझ रखते हैं, जोखिम उठाते हैं। कभी-कभी यह पेट से संबंधित समस्या दे सकता है।',
+    },
+    '5555': {
+      'en':
+          'Stubborn, complete task easily, sometimes it can give sudden situations, they don\'t accept changes, can\'t balance personal and professional life. Due to missing they can be influenced easily',
+      'gu':
+          'હઠીલા, સરળતાથી કાર્ય પૂર્ણ કરી શકે છે, ક્યારેક તે અચાનક પરિસ્થિતિઓનું કારણ બની શકે છે, તેઓ ફેરફારો સ્વીકારતા નથી, વ્યક્તિગત અને વ્યાવસાયિક જીવનને સંતુલિત કરી શકતા નથી. ગેરહાજરીને કારણે તેઓ સરળતાથી પ્રભાવિત થઈ શકે છે.',
+      'hi':
+          'जिद्दी, आसानी से काम पूरा करने वाले, कभी-कभी अचानक परिस्थितियाँ दे सकते हैं, बदलाव स्वीकार नहीं करते, निजी और पेशेवर जीवन में संतुलन नहीं बना पाते। गुमशुदा होने के कारण आसानी से प्रभावित हो सकते हैं',
+    },
+    '666': {
+      'en':
+          'Indication of evil thoughts, weary disturbed metalling try to maintain a proper social image',
+      'gu':
+          'દુષ્ટ વિચારોનો સંકેત, થાકેલા વિક્ષેપિત ધાતુશાસ્ત્ર યોગ્ય સામાજિક છબી જાળવવાનો પ્રયાસ કરે છે',
+      'hi':
+          'बुरे विचारों का संकेत, थका हुआ परेशान धातुकरण एक उचित सामाजिक छवि बनाए रखने की कोशिश करता है',
+    },
+    '6666': {
+      'en':
+          'Either active or lazy. They might miss golden opportunities. face lots of troubler and obstacles in life',
+      'gu':
+          'કાં તો સક્રિય હોય કે આળસુ. તેઓ સુવર્ણ તકો ગુમાવી શકે છે. જીવનમાં ઘણી મુશ્કેલીઓ અને અવરોધોનો સામનો કરવો પડે છે.',
+      'hi':
+          'या तो सक्रिय या आलसी। वे सुनहरे अवसरों को खो सकते हैं। जीवन में बहुत सारी परेशानियों और बाधाओं का सामना करना पड़ता है',
+    },
+    '777': {
+      'en':
+          'Always worried about money, health and relationship. After facing so many struggles they become strong, marriage issues.',
+      'gu':
+          'હંમેશા પૈસા, સ્વાસ્થ્ય અને સંબંધોની ચિંતા રહે છે. ઘણા સંઘર્ષોનો સામનો કર્યા પછી તેઓ મજબૂત બને છે, લગ્નના પ્રશ્નો.',
+      'hi':
+          'हमेशा पैसे, स्वास्थ्य और रिश्ते को लेकर चिंतित रहते हैं। इतने संघर्षों का सामना करने के बाद वे मजबूत बनते हैं, शादी के मुद्दे।',
+    },
+    '7777': {
+      'en':
+          'Difficult situation in their lives, health problems, damage personal and professional life. They will not have a piece of mind. They may not be blessed with children. They will have mental stress. kidney issues.',
+      'gu':
+          'તેમના જીવનમાં મુશ્કેલ પરિસ્થિતિ, સ્વાસ્થ્ય સમસ્યાઓ, વ્યક્તિગત અને વ્યાવસાયિક જીવનને નુકસાન. તેઓ શાંત નહીં હોય. તેમને બાળકોનો આશીર્વાદ નહીં મળે. તેમને માનસિક તણાવ રહેશે. કિડનીની સમસ્યાઓ.',
+      'hi':
+          'उनके जीवन में कठिन परिस्थितियाँ, स्वास्थ्य समस्याएँ, व्यक्तिगत और व्यावसायिक जीवन को नुकसान। उन्हें मानसिक शांति नहीं मिलेगी। उन्हें संतान सुख नहीं मिलेगा। उन्हें मानसिक तनाव रहेगा। किडनी संबंधी समस्याएँ होंगी।',
+    },
+    '888': {
+      'en':
+          'full of troubles after 40 years they but they will get good money but they become rude and angry.',
+      'gu':
+          '૪૦ વર્ષ પછી મુશ્કેલીઓથી ભરેલા, તેમને સારા પૈસા મળશે પણ તેઓ અસંસ્કારી અને ગુસ્સે થઈ જાય છે.',
+      'hi':
+          '40 साल के बाद वे परेशानियों से भरे होंगे लेकिन उन्हें अच्छा पैसा मिलेगा लेकिन वे असभ्य और गुस्सैल हो जाएंगे।',
+    },
+    '8888': {
+      'en':
+          'They constantly feel need for change. they are insecure regarding money. They might divert from their path and end up with struggles If there is no 8their money will not stay',
+      'gu':
+          'તેઓ સતત પરિવર્તનની અનુભવે છે. તેઓ વિચારો અસુરક્ષિત હોય છે. તેઓ તેમના માર્ગે ભટકી શકે છે અને જોખમમાં પરિણમી શકે છે જો કોઈ 8 ન હોય તો તેમના કોઈ પણ વ્યક્તિને નહીં.',
+      'hi':
+          'उन्हें लगातार बदलाव की ज़रूरत महसूस होती है। वे पैसे को लेकर असुरक्षित हैं। वे अपने रास्ते से भटक सकते हैं और संघर्षों में पड़ सकते हैं। अगर कोई 8 नहीं है तो उनका पैसा नहीं टिकेगा।',
+    },
+    '999': {
+      'en':
+          'They spent a lot of money without thinking Consequence, do extra ordinary things, always ready to healp others',
+      'gu':
+          'તેઓ વિચાર્યા વિના ઘણા પૈસા ખર્ચતા હતા પરિણામ, અસાધારણ કાર્યો કરતા હતા, હંમેશા બીજાઓને સાજા કરવા તૈયાર રહેતા હતા',
+      'hi':
+          'वे बिना सोचे-समझे ढेर सारा पैसा खर्च कर देते हैं, असाधारण काम करते हैं, दूसरों की मदद के लिए हमेशा तैयार रहते हैं',
+    },
+    '9999': {
+      'en':
+          'Sometimes it can create negative impression on this person. They deliver much. They don’t have pity on others, detached people, they can’t understand the emotion of people.',
+      'gu':
+          'ક્યારેક તે વ્યક્તિ પર નકારાત્મક છાપ ઉભી કરી શકે છે. તેઓ ઘણું બધું કરે છે. તેમને બીજાઓ પર દયા નથી હોતી, તેઓ અલગ લોકો હોય છે, તેઓ લોકોની લાગણીઓ સમજી શકતા નથી.',
+      'hi':
+          'कभी-कभी यह इस व्यक्ति पर नकारात्मक प्रभाव डाल सकता है। वे बहुत कुछ देते हैं। उन्हें दूसरों पर दया नहीं आती, वे अलग-थलग लोग हैं, वे लोगों की भावनाओं को नहीं समझ सकते।',
+    },
+  };
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {
-          _mobileAnalyzed = false;
-          _dobAnalyzed = false;
-          _nameAnalyzed = false;
-          _isNameLoading = false;
-          _nameCompoundNumber = null;
-          _nameRootNumber = null;
-          _nameCompoundMeaning = null;
-          _nameRootMeaning = null;
-          _mobileAnalysisResults = [];
-          _dobPresentNumbers = {};
-          _driverNumber = null;
-          _conductorNumber = null;
-          _kuaNumber = null;
-          _manualGridNumbers = {};
-          _mobileController.clear();
-          _dobController.clear();
-          _nameController.clear();
-          for (var c in _manualCellControllers.values) {
-            c.clear();
-          }
-        });
-      }
-    });
   }
 
   Future<void> _analyzeMobile() async {
@@ -302,6 +417,38 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
     }
   }
 
+  int _getChaldeanValue(String char) {
+    final Map<String, int> chaldeanMapping = {
+      'A': 1,
+      'I': 1,
+      'J': 1,
+      'Q': 1,
+      'Y': 1,
+      'B': 2,
+      'K': 2,
+      'R': 2,
+      'C': 3,
+      'G': 3,
+      'L': 3,
+      'S': 3,
+      'D': 4,
+      'M': 4,
+      'T': 4,
+      'E': 5,
+      'H': 5,
+      'N': 5,
+      'X': 5,
+      'U': 6,
+      'V': 6,
+      'W': 6,
+      'O': 7,
+      'Z': 7,
+      'F': 8,
+      'P': 8,
+    };
+    return chaldeanMapping[char.toUpperCase()] ?? 0;
+  }
+
   Future<void> _shareMobileAnalysis() async {
     final mobile = _mobileController.text.trim();
     if (mobile.isEmpty || _mobileAnalysisResults.isEmpty) return;
@@ -309,239 +456,311 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
     // Show generating status
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Generating sharing image...'),
+        content: Text('Generating PDF Report...'),
         duration: Duration(seconds: 2),
       ),
     );
 
     try {
-      final controller = ScreenshotController();
-      // Pre-calculate height: header(380) + footer(160) + each card(~320px)
-      final double estimatedHeight =
-          380 + 160 + (_mobileAnalysisResults.length * 320.0) + 80;
+      final pdf = pw.Document();
 
-      final Uint8List? imageBytes = await controller.captureFromWidget(
-        MediaQuery(
-          data: const MediaQueryData(size: Size(600, double.maxFinite)),
-          child: _buildShareableImage(),
-        ),
-        delay: const Duration(milliseconds: 200),
-        targetSize: Size(600, estimatedHeight),
-      );
+      // Load the logo
+      final logoBytes =
+          (await rootBundle.load(
+            'assets/images/logo_full.jpg',
+          )).buffer.asUint8List();
+      final logoImage = pw.MemoryImage(logoBytes);
 
-      if (imageBytes != null) {
-        final directory = await getTemporaryDirectory();
-        final imagePath =
-            await File(
-              '${directory.path}/mobile_analysis_$mobile.png',
-            ).create();
-        await imagePath.writeAsBytes(imageBytes);
+      // Load fonts for better styling and Indic language support
+      final baseFont = await PdfGoogleFonts.poppinsRegular();
+      final boldFont = await PdfGoogleFonts.poppinsBold();
+      // For Hindi/Gujarati support
+      final hindiFont = await PdfGoogleFonts.notoSerifDevanagariRegular();
+      final gujaratiFont = await PdfGoogleFonts.notoSansGujaratiRegular();
 
-        await Share.shareXFiles([
-          XFile(imagePath.path),
-        ], text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to generate image: $e')));
-      }
-    }
-  }
-
-  Widget _buildShareableImage() {
-    final mobile = _mobileController.text.trim();
-    return Material(
-      color: const Color(0xFFFBFBFE),
-      child: Container(
-        width: 600,
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.vip.withOpacity(0.2), width: 1),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Premium Gradient Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: pw.PageTheme(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(32),
+            buildBackground:
+                (context) => pw.FullPage(
+                  ignoreMargins: true,
+                  child: pw.Center(
+                    child: pw.Opacity(
+                      opacity: 0.05,
+                      child: pw.Image(logoImage, width: 400),
+                    ),
+                  ),
                 ),
-              ),
-              child: Column(
+          ),
+          header:
+              (context) => pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  pw.Image(logoImage, height: 40),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.auto_awesome,
-                          color: AppColors.vip,
-                          size: 32,
+                      pw.Text(
+                        'Aank Sastra',
+                        style: pw.TextStyle(
+                          font: boldFont,
+                          fontSize: 16,
+                          color: PdfColors.blueGrey900,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      const Text(
-                        'Aank Sastra',
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: 1.2,
+                      pw.Text(
+                        'Universal Numerology Analysis',
+                        style: pw.TextStyle(
+                          font: baseFont,
+                          fontSize: 10,
+                          color: PdfColors.blueGrey700,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'UNIVERSAL NUMEROLOGY ANALYSIS',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.vip.withOpacity(0.8),
-                      letterSpacing: 4,
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-                  const Text(
-                    'Mobile Number Analysis',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    mobile,
-                    style: const TextStyle(
-                      fontSize: 56,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    width: 80,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.vip,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
                 ],
               ),
-            ),
-
-            // Analysis Content
-            Padding(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                children: [
-                  ..._mobileAnalysisResults.map((item) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 32),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Container(
-                              width: 100,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.05),
-                                border: Border(
-                                  right: BorderSide(
-                                    color: AppColors.primary.withOpacity(0.1),
-                                  ),
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Pos ${item['position']}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    item['pair'],
-                                    style: const TextStyle(
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildLangItem(
-                                      'ENG',
-                                      item['meaning_en'],
-                                      const Color(0xFFE3F2FD),
-                                      const Color(0xFF1976D2),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildLangItem(
-                                      'हिंदी',
-                                      item['meaning_hi'],
-                                      const Color(0xFFF3E5F5),
-                                      const Color(0xFF7B1FA2),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildLangItem(
-                                      'ગુજરાતી',
-                                      item['meaning_gu'],
-                                      const Color(0xFFE8F5E9),
-                                      const Color(0xFF388E3C),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+          footer:
+              (context) => pw.Container(
+                alignment: pw.Alignment.centerRight,
+                margin: const pw.EdgeInsets.only(top: 20),
+                child: pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: pw.TextStyle(
+                    font: baseFont,
+                    fontSize: 10,
+                    color: PdfColors.grey,
+                  ),
+                ),
+              ),
+          build:
+              (context) => [
+                pw.SizedBox(height: 20),
+                pw.Header(
+                  level: 0,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Mobile Number Analysis',
+                        style: pw.TextStyle(
+                          font: boldFont,
+                          fontSize: 24,
+                          color: PdfColors.blueGrey900,
                         ),
                       ),
-                    );
-                  }).toList(),
-                ],
-              ),
-            ),
-          ],
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'Mobile: $mobile',
+                        style: pw.TextStyle(
+                          font: baseFont,
+                          fontSize: 18,
+                          color: PdfColors.blue700,
+                        ),
+                      ),
+                      pw.Divider(thickness: 1, color: PdfColors.blueGrey100),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+
+                ..._mobileAnalysisResults.map((item) {
+                  return pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 20),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.grey200),
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(12),
+                      ),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 8,
+                          ),
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColors.grey50,
+                            borderRadius: pw.BorderRadius.vertical(
+                              top: pw.Radius.circular(12),
+                            ),
+                          ),
+                          child: pw.Text(
+                            'Pair: ${item['pair']} (Position ${item['position']})',
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 14,
+                              color: PdfColors.blueGrey800,
+                            ),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(15),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              _buildPdfLangItem(
+                                'ENGLISH',
+                                (item['meaning_en'] ?? '').toString(),
+                                PdfColors.blue700,
+                                baseFont,
+                              ),
+                              pw.SizedBox(height: 12),
+                              _buildPdfLangItem(
+                                'हिन्दी',
+                                (item['meaning_hi'] ?? '').toString(),
+                                PdfColors.purple700,
+                                hindiFont,
+                              ),
+                              pw.SizedBox(height: 12),
+                              _buildPdfLangItem(
+                                'ગુજરાતી',
+                                (item['meaning_gu'] ?? '').toString(),
+                                PdfColors.green700,
+                                gujaratiFont,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+
+                // Full Repeating Digits Reference Table
+                pw.SizedBox(height: 30),
+                pw.Text(
+                  'Repeating Digits Combinations (Angel Numbers)',
+                  style: pw.TextStyle(
+                    font: boldFont,
+                    fontSize: 20,
+                    color: PdfColors.blueGrey900,
+                  ),
+                ),
+                pw.SizedBox(height: 15),
+                ..._repeatingPatterns.entries.map((entry) {
+                  final pattern = entry.key;
+                  final meaning = entry.value;
+                  return pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 20),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.amber200),
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(12),
+                      ),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 8,
+                          ),
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColors.amber50,
+                            borderRadius: pw.BorderRadius.vertical(
+                              top: pw.Radius.circular(12),
+                            ),
+                          ),
+                          child: pw.Text(
+                            'Combination: $pattern',
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 16,
+                              color: PdfColors.amber900,
+                            ),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(15),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              _buildPdfLangItem(
+                                'ENGLISH',
+                                meaning['en'] ?? '',
+                                PdfColors.blue700,
+                                baseFont,
+                              ),
+                              pw.SizedBox(height: 12),
+                              _buildPdfLangItem(
+                                'हिन्दी',
+                                meaning['hi'] ?? '',
+                                PdfColors.purple700,
+                                hindiFont,
+                              ),
+                              pw.SizedBox(height: 12),
+                              _buildPdfLangItem(
+                                'ગુજરાતી',
+                                meaning['gu'] ?? '',
+                                PdfColors.green700,
+                                gujaratiFont,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
         ),
-      ),
+      );
+
+      final pdfBytes = await pdf.save();
+      final directory = await getTemporaryDirectory();
+      final pdfPath =
+          await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
+      await pdfPath.writeAsBytes(pdfBytes);
+
+      await Share.shareXFiles([
+        XFile(pdfPath.path),
+      ], text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to generate PDF: $e')));
+      }
+    }
+  }
+
+  pw.Widget _buildPdfLangItem(
+    String lang,
+    String text,
+    PdfColor color,
+    pw.Font font,
+  ) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Container(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.grey50,
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+          ),
+          child: pw.Text(
+            lang,
+            style: pw.TextStyle(
+              font: font,
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          text,
+          style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.black),
+        ),
+      ],
     );
   }
 
@@ -580,18 +799,21 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(32.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 32),
-          _buildCustomTabBar(),
-          const SizedBox(height: 40),
-          _getActiveTabContent(),
-          const SizedBox(height: 100),
-        ],
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 32),
+            _buildCustomTabBar(),
+            const SizedBox(height: 40),
+            _getActiveTabContent(),
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
@@ -745,6 +967,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                 Icons.phone_android,
                 keyboardType: TextInputType.number,
                 textInputAction: TextInputAction.search,
+                maxLength: 10,
               ),
             ),
           ],
@@ -1083,7 +1306,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
               Expanded(
                 child: _buildDobStatCard(
                   label: 'Conductor Number',
-                  labelHi: 'संचालक संख्या',
+                  labelHi: 'संचાલક संख्या',
                   labelGu: 'કન્ડક્ટર નંબર',
                   value: _conductorNumber!,
                   color: AppColors.vip,
@@ -1146,19 +1369,115 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                   ),
                   const SizedBox(height: 24),
                   if (isWide)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Column(
                       children: [
-                        _buildDynamicLoShuGrid(),
-                        const SizedBox(width: 48),
-                        Expanded(child: _buildLoShuPlanesSection()),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Column(
+                              children: [
+                                const Text(
+                                  'Automated Grid',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.vip,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildDynamicLoShuGrid(),
+                              ],
+                            ),
+                            const SizedBox(width: 80),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      'Manual Grid',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          for (var c
+                                              in _manualCellControllers
+                                                  .values) {
+                                            c.clear();
+                                          }
+                                        });
+                                      },
+                                      icon: const Icon(
+                                        Icons.refresh,
+                                        size: 20,
+                                        color: AppColors.error,
+                                      ),
+                                      tooltip: 'Clear Manual Grid',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                _buildManualGridTab(),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 80),
+                        _buildLoShuPlanesSection(),
                       ],
                     )
                   else
                     Column(
                       children: [
-                        Center(child: _buildDynamicLoShuGrid()),
-                        const SizedBox(height: 48),
+                        const Text(
+                          'Automated Grid',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.vip,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDynamicLoShuGrid(),
+                        const SizedBox(height: 56),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Manual Grid',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  for (var c in _manualCellControllers.values) {
+                                    c.clear();
+                                  }
+                                });
+                              },
+                              icon: const Icon(
+                                Icons.refresh,
+                                size: 20,
+                                color: AppColors.error,
+                              ),
+                              tooltip: 'Clear Manual Grid',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Center(child: _buildManualGridTab()),
+                        const SizedBox(height: 56),
                         _buildLoShuPlanesSection(),
                       ],
                     ),
@@ -1170,9 +1489,6 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
             const SizedBox(height: 48),
             _buildRelationshipCard(),
           ],
-          const SizedBox(height: 56),
-          const Divider(height: 1),
-          const SizedBox(height: 56),
         ] else if (_isDOBLoading)
           Padding(
             padding: const EdgeInsets.only(top: 100),
@@ -1213,48 +1529,6 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
               ),
             ),
           ),
-
-        const SizedBox(height: 00),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Manual Lo Shu Grid Input',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  'Staff can manually fill or override grid cells below.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  for (var c in _manualCellControllers.values) {
-                    c.clear();
-                  }
-                });
-              },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Clear Manual Grid'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            ),
-          ],
-        ),
-        const SizedBox(height: 32),
-        _buildManualGridTab(),
-        const SizedBox(height: 100),
       ],
     );
   }
@@ -1524,32 +1798,31 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
 
     return Container(
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: info['color']),
-      child: Opacity(
-        opacity: 1.0, // Shows text ONLY if present
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '$val',
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.w900,
-                color: Colors.black,
-                height: 1.1,
-              ),
+      decoration: BoxDecoration(
+        color: isPresent ? info['color'] : Colors.grey[200],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '$val',
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w900,
+              color: isPresent ? Colors.black : Colors.grey[400],
+              height: 1.1,
             ),
-            Text(
-              info['name'],
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: Colors.black,
-                letterSpacing: 1.2,
-              ),
+          ),
+          Text(
+            info['name'],
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: isPresent ? Colors.black : Colors.grey[400],
+              letterSpacing: 1.2,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1565,7 +1838,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       {
         'numbers': '357',
         'en': 'Emotional Plane',
-        'hi': 'इમોશનલ પ્લેન',
+        'hi': 'इમોશનલ પ્લેन',
         'gu': 'ભાવનાત્મક સ્તર',
       },
       {
@@ -1717,8 +1990,9 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           _isNameLoading ? null : _analyzeName,
           _isNameLoading ? 'Analyzing...' : 'Calculate Power',
           Icons.person_outline,
-          keyboardType: TextInputType.name,
+          keyboardType: TextInputType.text,
           textInputAction: TextInputAction.go,
+          maxLength: 200,
         ),
         if (_nameAnalyzed) ...[
           const SizedBox(height: 40),
@@ -1846,6 +2120,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
     TextInputAction textInputAction = TextInputAction.done,
+    int? maxLength,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -1886,7 +2161,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                   keyboardType: keyboardType,
                   textInputAction: textInputAction,
                   onSubmitted: onAnalyze != null ? (_) => onAnalyze() : null,
-                  maxLength: 10,
+                  maxLength: maxLength,
                   decoration: InputDecoration(
                     hintText: hint,
                     counterText: "",
@@ -1911,6 +2186,10 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                       ),
                     ),
                   ),
+                  inputFormatters:
+                      keyboardType == TextInputType.number
+                          ? [FilteringTextInputFormatter.digitsOnly]
+                          : null,
                 ),
               ),
               const SizedBox(width: 20),
@@ -2144,188 +2423,310 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
     );
   }
 
+  List<String> _getMatchingRepeatingPatterns(String mobile) {
+    List<String> found = [];
+    final digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+    for (var d in digits) {
+      if (mobile.contains(d * 4)) {
+        found.add(d * 4);
+      } else if (mobile.contains(d * 3)) {
+        found.add(d * 3);
+      }
+    }
+    return found;
+  }
+
   Future<void> _shareNameAnalysis() async {
     final name = _nameController.text.trim();
     if (name.isEmpty || !_nameAnalyzed || _nameRootNumber == null) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Preparing your name report...'),
+        content: Text('Generating PDF Report...'),
         duration: Duration(seconds: 2),
       ),
     );
 
     try {
-      final controller = ScreenshotController();
-      final Uint8List? imageBytes = await controller.captureFromWidget(
-        MediaQuery(
-          data: const MediaQueryData(size: Size(600, double.maxFinite)),
-          child: _buildNameShareableImage(),
+      final pdf = pw.Document();
+
+      // Load assets
+      final logoBytes =
+          (await rootBundle.load(
+            'assets/images/logo_full.jpg',
+          )).buffer.asUint8List();
+      final logoImage = pw.MemoryImage(logoBytes);
+
+      final baseFont = await PdfGoogleFonts.poppinsRegular();
+      final boldFont = await PdfGoogleFonts.poppinsBold();
+      final hindiFont = await PdfGoogleFonts.notoSerifDevanagariRegular();
+      final gujaratiFont = await PdfGoogleFonts.notoSansGujaratiRegular();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: pw.PageTheme(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(32),
+            buildBackground:
+                (context) => pw.FullPage(
+                  ignoreMargins: true,
+                  child: pw.Center(
+                    child: pw.Opacity(
+                      opacity: 0.05,
+                      child: pw.Image(logoImage, width: 400),
+                    ),
+                  ),
+                ),
+          ),
+          header:
+              (context) => pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Image(logoImage, height: 40),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Aank Sastra',
+                        style: pw.TextStyle(
+                          font: boldFont,
+                          fontSize: 16,
+                          color: PdfColors.blueGrey900,
+                        ),
+                      ),
+                      pw.Text(
+                        'Universal Numerology Analysis',
+                        style: pw.TextStyle(
+                          font: baseFont,
+                          fontSize: 10,
+                          color: PdfColors.blueGrey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+          footer:
+              (context) => pw.Container(
+                alignment: pw.Alignment.centerRight,
+                margin: const pw.EdgeInsets.only(top: 20),
+                child: pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: pw.TextStyle(
+                    font: baseFont,
+                    fontSize: 10,
+                    color: PdfColors.grey,
+                  ),
+                ),
+              ),
+          build:
+              (context) => [
+                pw.SizedBox(height: 20),
+                pw.Header(
+                  level: 0,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Name Numerology Analysis',
+                        style: pw.TextStyle(
+                          font: boldFont,
+                          fontSize: 24,
+                          color: PdfColors.blueGrey900,
+                        ),
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'Analysis for: $name',
+                        style: pw.TextStyle(
+                          font: baseFont,
+                          fontSize: 18,
+                          color: PdfColors.blue700,
+                        ),
+                      ),
+                      pw.Divider(thickness: 1, color: PdfColors.blueGrey100),
+                    ],
+                  ),
+                ),
+                pw.Center(
+                  child: pw.Column(
+                    children: [
+                      // Calculation breakdown
+                      pw.Wrap(
+                        spacing: 12,
+                        runSpacing: 20,
+                        alignment: pw.WrapAlignment.center,
+                        children:
+                            name.split(' ').map((part) {
+                              return pw.Row(
+                                mainAxisSize: pw.MainAxisSize.min,
+                                children:
+                                    part.split('').map((char) {
+                                      final val = _getChaldeanValue(char);
+                                      return pw.Padding(
+                                        padding: const pw.EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: pw.Column(
+                                          children: [
+                                            pw.Text(
+                                              char.toUpperCase(),
+                                              style: pw.TextStyle(
+                                                font: boldFont,
+                                                fontSize: 22,
+                                                letterSpacing: 2,
+                                              ),
+                                            ),
+                                            pw.SizedBox(height: 5),
+                                            pw.Text(
+                                              '$val',
+                                              style: pw.TextStyle(
+                                                font: baseFont,
+                                                fontSize: 18,
+                                                color: PdfColors.grey700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                              );
+                            }).toList(),
+                      ),
+
+                      pw.SizedBox(height: 60),
+
+                      // Reduction equation
+                      if (_nameCompoundNumber != null) ...[
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.center,
+                          children: [
+                            pw.Text(
+                              '$_nameCompoundNumber',
+                              style: pw.TextStyle(
+                                font: baseFont,
+                                fontSize: 24,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                            pw.Text(
+                              '  ---->  ',
+                              style: pw.TextStyle(
+                                font: baseFont,
+                                fontSize: 24,
+                                color: PdfColors.grey500,
+                              ),
+                            ),
+                            pw.Text(
+                              '${_nameCompoundNumber.toString().split('').join('+')} = $_nameRootNumber',
+                              style: pw.TextStyle(
+                                font: baseFont,
+                                fontSize: 24,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.SizedBox(height: 40),
+                      ],
+
+                      // Final Result
+                      pw.RichText(
+                        text: pw.TextSpan(
+                          children: [
+                            pw.TextSpan(
+                              text: 'Result : ',
+                              style: pw.TextStyle(
+                                font: baseFont,
+                                fontSize: 32,
+                                color: PdfColors.black,
+                              ),
+                            ),
+                            pw.TextSpan(
+                              text: '$_nameRootNumber',
+                              style: pw.TextStyle(
+                                font: boldFont,
+                                fontSize: 36,
+                                color: PdfColors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      pw.SizedBox(height: 20),
+                      pw.Align(
+                        alignment: pw.Alignment.centerRight,
+                        child: pw.Text(
+                          'Chaldean (Indian)',
+                          style: pw.TextStyle(
+                            font: baseFont,
+                            fontSize: 10,
+                            color: PdfColors.grey500,
+                            fontStyle: pw.FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 40),
+
+                if (_nameRootMeaning != null) ...[
+                  pw.Text(
+                    'Root Number Meaning',
+                    style: pw.TextStyle(
+                      font: boldFont,
+                      fontSize: 18,
+                      color: PdfColors.blueGrey900,
+                    ),
+                  ),
+                  pw.SizedBox(height: 15),
+                  _buildPdfLangItem(
+                    'ENGLISH',
+                    _nameRootMeaning!['meaning_en'] ?? '',
+                    PdfColors.blue700,
+                    baseFont,
+                  ),
+                  pw.SizedBox(height: 15),
+                  _buildPdfLangItem(
+                    'हिन्दी',
+                    _nameRootMeaning!['meaning_hi'] ?? '',
+                    PdfColors.purple700,
+                    hindiFont,
+                  ),
+                  pw.SizedBox(height: 15),
+                  _buildPdfLangItem(
+                    'ગુજરાતી',
+                    _nameRootMeaning!['meaning_gu'] ?? '',
+                    PdfColors.green700,
+                    gujaratiFont,
+                  ),
+                ],
+              ],
         ),
-        delay: const Duration(milliseconds: 300),
-        targetSize: const Size(600, 1600),
       );
 
-      if (imageBytes != null) {
-        final directory = await getTemporaryDirectory();
-        final imagePath =
-            await File(
-              '${directory.path}/name_analysis_${name.replaceAll(' ', '_')}.png',
-            ).create();
-        await imagePath.writeAsBytes(imageBytes);
+      final pdfBytes = await pdf.save();
+      final directory = await getTemporaryDirectory();
+      final pdfPath =
+          await File(
+            '${directory.path}/name_analysis_${name.replaceAll(' ', '_')}.pdf',
+          ).create();
+      await pdfPath.writeAsBytes(pdfBytes);
 
-        await Share.shareXFiles([
-          XFile(imagePath.path),
-        ], text: 'My Chaldean Name Analysis from Aank Sastra! ✨');
-      }
+      await Share.shareXFiles([
+        XFile(pdfPath.path),
+      ], text: 'My Chaldean Name Analysis from Aank Sastra! ✨');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to share: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to generate PDF: $e')));
       }
     }
-  }
-
-  Widget _buildNameShareableImage() {
-    return Material(
-      color: const Color(0xFFFBFBFE),
-      child: Container(
-        width: 600,
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.vip.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.stars,
-                    color: AppColors.vip,
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AANK SASTRA',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4,
-                        color: AppColors.vip,
-                      ),
-                    ),
-                    Text(
-                      'Sacred Name Numerology',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 60),
-
-            // Profile Info
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.vip.withOpacity(0.1)),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'NAME ANALYZED',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _nameController.text.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 48),
-
-            // Result Display
-            _buildPremiumCard(
-              child: Column(
-                children: [
-                  const Text(
-                    'DESTINY ROOT NUMBER',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '$_nameRootNumber',
-                    style: const TextStyle(
-                      fontSize: 120,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.vip,
-                      height: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-
-                  // Meaning
-                  if (_nameRootMeaning != null) ...[
-                    _buildMeaningSection(
-                      'Universal Implication',
-                      _nameRootMeaning!,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 60),
-
-            // Footer
-            const Divider(),
-            const SizedBox(height: 40),
-            Text(
-              'Generated via Aank Sastra App',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: 120),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _shareDOBAnalysis() async {
@@ -2339,164 +2740,307 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Preparing Lo Shu report...'),
+        content: Text('Generating PDF Report...'),
         duration: Duration(seconds: 2),
       ),
     );
 
     try {
-      final controller = ScreenshotController();
-      const double estimatedHeight = 1500;
+      final pdf = pw.Document();
 
-      final Uint8List? imageBytes = await controller.captureFromWidget(
-        MediaQuery(
-          data: const MediaQueryData(size: Size(600, double.maxFinite)),
-          child: _buildDOBShareableImage(),
+      // Load assets
+      final logoBytes =
+          (await rootBundle.load(
+            'assets/images/logo_full.jpg',
+          )).buffer.asUint8List();
+      final logoImage = pw.MemoryImage(logoBytes);
+
+      final baseFont = await PdfGoogleFonts.poppinsRegular();
+      final boldFont = await PdfGoogleFonts.poppinsBold();
+      final hindiFont = await PdfGoogleFonts.notoSerifDevanagariRegular();
+      final gujaratiFont = await PdfGoogleFonts.notoSansGujaratiRegular();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: pw.PageTheme(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(32),
+            buildBackground:
+                (context) => pw.FullPage(
+                  ignoreMargins: true,
+                  child: pw.Center(
+                    child: pw.Opacity(
+                      opacity: 0.05,
+                      child: pw.Image(logoImage, width: 400),
+                    ),
+                  ),
+                ),
+          ),
+          header:
+              (context) => pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Image(logoImage, height: 40),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Aank Sastra',
+                        style: pw.TextStyle(
+                          font: boldFont,
+                          fontSize: 16,
+                          color: PdfColors.blueGrey900,
+                        ),
+                      ),
+                      pw.Text(
+                        'Universal Numerology Analysis',
+                        style: pw.TextStyle(
+                          font: baseFont,
+                          fontSize: 10,
+                          color: PdfColors.blueGrey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+          footer:
+              (context) => pw.Container(
+                alignment: pw.Alignment.centerRight,
+                margin: const pw.EdgeInsets.only(top: 20),
+                child: pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: pw.TextStyle(
+                    font: baseFont,
+                    fontSize: 10,
+                    color: PdfColors.grey,
+                  ),
+                ),
+              ),
+          build:
+              (context) => [
+                pw.SizedBox(height: 20),
+                pw.Header(
+                  level: 0,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Lo Shu Grid Analysis',
+                        style: pw.TextStyle(
+                          font: boldFont,
+                          fontSize: 24,
+                          color: PdfColors.blueGrey900,
+                        ),
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'DOB: $dob',
+                        style: pw.TextStyle(
+                          font: baseFont,
+                          fontSize: 18,
+                          color: PdfColors.blue700,
+                        ),
+                      ),
+                      pw.Divider(thickness: 1, color: PdfColors.blueGrey100),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 30),
+
+                // Stats
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPdfStatItem(
+                      'DRIVER',
+                      '$_driverNumber',
+                      PdfColors.blue700,
+                      boldFont,
+                    ),
+                    _buildPdfStatItem(
+                      'CONDUCTOR',
+                      '$_conductorNumber',
+                      PdfColors.amber700,
+                      boldFont,
+                    ),
+                    _buildPdfStatItem(
+                      'KUA',
+                      '$_kuaNumber',
+                      PdfColors.purple700,
+                      boldFont,
+                    ),
+                  ],
+                ),
+
+                pw.SizedBox(height: 40),
+
+                // Grid
+                pw.Center(
+                  child: pw.Container(
+                    width: 300,
+                    height: 300,
+                    decoration: const pw.BoxDecoration(color: PdfColors.black),
+                    child: pw.GridView(
+                      crossAxisCount: 3,
+                      children:
+                          [4, 9, 2, 3, 5, 7, 8, 1, 6].map((n) {
+                            return _buildPdfGridCell(
+                              n,
+                              isPresent: _dobPresentNumbers.contains(n),
+                              font: boldFont,
+                            );
+                          }).toList(),
+                    ),
+                  ),
+                ),
+
+                pw.SizedBox(height: 40),
+
+                if (_dcRelationship != null) ...[
+                  pw.Text(
+                    'Relationship Insight',
+                    style: pw.TextStyle(
+                      font: boldFont,
+                      fontSize: 18,
+                      color: PdfColors.blueGrey900,
+                    ),
+                  ),
+                  pw.SizedBox(height: 15),
+                  _buildPdfLangItem(
+                    'ENGLISH',
+                    _dcRelationship!['meaning_en'] ?? '',
+                    PdfColors.blue700,
+                    baseFont,
+                  ),
+                  pw.SizedBox(height: 12),
+                  _buildPdfLangItem(
+                    'हिन्दी',
+                    _dcRelationship!['meaning_hi'] ?? '',
+                    PdfColors.purple700,
+                    hindiFont,
+                  ),
+                  pw.SizedBox(height: 12),
+                  _buildPdfLangItem(
+                    'ગુજરાતી',
+                    _dcRelationship!['meaning_gu'] ?? '',
+                    PdfColors.green700,
+                    gujaratiFont,
+                  ),
+                ],
+              ],
         ),
-        delay: const Duration(milliseconds: 300),
-        targetSize: const Size(600, estimatedHeight),
       );
 
-      if (imageBytes != null) {
-        final directory = await getTemporaryDirectory();
-        final imagePath =
-            await File(
-              '${directory.path}/dob_analysis_${dob.replaceAll('/', '_')}.png',
-            ).create();
-        await imagePath.writeAsBytes(imageBytes);
+      final pdfBytes = await pdf.save();
+      final directory = await getTemporaryDirectory();
+      final pdfPath =
+          await File(
+            '${directory.path}/dob_analysis_${dob.replaceAll('/', '_')}.pdf',
+          ).create();
+      await pdfPath.writeAsBytes(pdfBytes);
 
-        await Share.shareXFiles(
-          [XFile(imagePath.path)],
-          text:
-              'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
-        );
-      }
+      await Share.shareXFiles(
+        [XFile(pdfPath.path)],
+        text:
+            'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to share: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to generate PDF: $e')));
       }
     }
   }
 
-  Widget _buildDOBShareableImage() {
-    return Material(
-      color: const Color(0xFFFBFBFE),
-      child: Container(
-        width: 600,
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.vip.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome,
-                    color: AppColors.vip,
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AANK SASTRA',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4,
-                        color: AppColors.vip,
-                      ),
-                    ),
-                    Text(
-                      'Sacred Numerology Analytics',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 60),
-
-            // DOB Info
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.vip.withOpacity(0.1)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildSummaryItem(
-                    'Date of Birth',
-                    _dobController.text,
-                    Icons.calendar_today,
-                  ),
-                  _buildSummaryItem(
-                    'Driver Number',
-                    '$_driverNumber',
-                    Icons.stars,
-                  ),
-                  _buildSummaryItem(
-                    'Conductor',
-                    '$_conductorNumber',
-                    Icons.offline_bolt,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 60),
-
-            // The Grid
-            const Text(
-              'YOUR LO SHU GRID',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 32),
-            _buildDynamicLoShuGrid(),
-            const SizedBox(height: 60),
-
-            // Relationship
-            if (_dcRelationship != null) ...[
-              const Divider(),
-              const SizedBox(height: 40),
-              _buildRelationshipCard(),
-              const SizedBox(height: 40),
-            ],
-
-            // Footer
-            const Divider(),
-            const SizedBox(height: 40),
-            Text(
-              'Generated via Aank Sastra App',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+  pw.Widget _buildPdfStatItem(
+    String label,
+    String value,
+    PdfColor color,
+    pw.Font font,
+  ) {
+    return pw.Column(
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: 10,
+            color: PdfColors.grey700,
+            font: font,
+          ),
         ),
+        pw.SizedBox(height: 5),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: 32,
+            fontWeight: pw.FontWeight.bold,
+            color: color,
+            font: font,
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPdfGridCell(
+    int val, {
+    required bool isPresent,
+    required pw.Font font,
+  }) {
+    final Map<int, PdfColor> colors = {
+      4: PdfColors.red,
+      9: PdfColors.lightGreen200,
+      2: PdfColors.amber100,
+      3: PdfColors.green300,
+      5: PdfColors.blue50,
+      7: PdfColors.blue200,
+      8: PdfColors.orange100,
+      1: PdfColors.deepPurple50,
+      6: PdfColors.yellow50,
+    };
+
+    final Map<int, String> planetNames = {
+      4: 'RAHU',
+      9: 'MARS',
+      2: 'MOON',
+      3: 'JUPITER',
+      5: 'MERCURY',
+      7: 'KETU',
+      8: 'SATURN',
+      1: 'SUN',
+      6: 'VENUS',
+    };
+
+    return pw.Container(
+      alignment: pw.Alignment.center,
+      decoration: pw.BoxDecoration(
+        color: isPresent ? colors[val] : PdfColors.grey100,
+        border: pw.Border.all(color: PdfColors.black, width: 0.5),
+      ),
+      child: pw.Column(
+        mainAxisAlignment: pw.MainAxisAlignment.center,
+        children: [
+          pw.Text(
+            '$val',
+            style: pw.TextStyle(
+              fontSize: 32,
+              fontWeight: pw.FontWeight.bold,
+              color: isPresent ? PdfColors.black : PdfColors.grey300,
+              font: font,
+            ),
+          ),
+          pw.Text(
+            planetNames[val] ?? '',
+            style: pw.TextStyle(
+              fontSize: 8,
+              fontWeight: pw.FontWeight.bold,
+              color: isPresent ? PdfColors.black : PdfColors.grey300,
+              font: font,
+            ),
+          ),
+        ],
       ),
     );
   }
