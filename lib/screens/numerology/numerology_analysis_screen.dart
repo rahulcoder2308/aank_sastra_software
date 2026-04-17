@@ -12,6 +12,8 @@ import '../../core/api_service.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:screenshot/screenshot.dart';
+import 'dart:ui' as ui;
 
 class NumerologyAnalysisScreen extends StatefulWidget {
   const NumerologyAnalysisScreen({super.key});
@@ -24,6 +26,31 @@ class NumerologyAnalysisScreen extends StatefulWidget {
 class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ScreenshotController _screenshotController = ScreenshotController();
+
+  Future<Uint8List> _captureTextAsImage(
+    String text, {
+    double fontSize = 16,
+    Color color = Colors.black,
+    FontWeight fontWeight = FontWeight.normal,
+  }) async {
+    return await _screenshotController.captureFromWidget(
+      Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: fontSize,
+            color: color,
+            fontWeight: fontWeight,
+          ),
+        ),
+      ),
+      pixelRatio: 3.0,
+    );
+  }
+
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
@@ -479,6 +506,20 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       final hindiFont = await PdfGoogleFonts.notoSerifDevanagariRegular();
       final gujaratiFont = await PdfGoogleFonts.notoSansGujaratiRegular();
 
+      // Fix: Pre-generate images for broken Indic text shaping
+      final List<Map<String, Uint8List>> indicImagesList = [];
+      for (final item in _mobileAnalysisResults) {
+        final hiImg = await _captureTextAsImage(
+          (item['meaning_hi'] ?? '').toString(),
+          color: Colors.purple[700]!,
+        );
+        final guImg = await _captureTextAsImage(
+          (item['meaning_gu'] ?? '').toString(),
+          color: Colors.green[700]!,
+        );
+        indicImagesList.add({'hi': hiImg, 'gu': guImg});
+      }
+
       pdf.addPage(
         pw.MultiPage(
           pageTheme: pw.PageTheme(
@@ -567,7 +608,9 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                 ),
                 pw.SizedBox(height: 20),
 
-                ..._mobileAnalysisResults.map((item) {
+                ..._mobileAnalysisResults.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
                   return pw.Container(
                     margin: const pw.EdgeInsets.only(bottom: 20),
                     decoration: pw.BoxDecoration(
@@ -616,6 +659,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                                 (item['meaning_hi'] ?? '').toString(),
                                 PdfColors.purple700,
                                 hindiFont,
+                                imageBytes: indicImagesList[index]['hi'],
                               ),
                               pw.SizedBox(height: 12),
                               _buildPdfLangItem(
@@ -623,6 +667,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                                 (item['meaning_gu'] ?? '').toString(),
                                 PdfColors.green700,
                                 gujaratiFont,
+                                imageBytes: indicImagesList[index]['gu'],
                               ),
                             ],
                           ),
@@ -714,58 +759,22 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory =
-          Platform.isWindows
-              ? await getApplicationDocumentsDirectory()
-              : await getTemporaryDirectory();
+      final directory = await getTemporaryDirectory();
       final pdfPath =
           await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      if (Platform.isWindows) {
-        // 100% Working approach for Windows: Save to a user-chosen location
-        String? outputFile = await FilePicker.saveFile(
-          dialogTitle: 'Save Mobile Analysis PDF',
-          fileName: 'Mobile_Analysis_$mobile.pdf',
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
-        );
-
-        if (outputFile != null) {
-          // Ensure file extension is present
-          if (!outputFile.toLowerCase().endsWith('.pdf')) {
-            outputFile += '.pdf';
-          }
-          final savedFile = File(outputFile);
-          await savedFile.writeAsBytes(pdfBytes);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Report saved to $outputFile'),
-                action: SnackBarAction(
-                  label: 'Open Folder',
-                  onPressed: () {
-                    Process.run('explorer.exe', ['/select,', outputFile!]);
-                  },
-                ),
-              ),
-            );
-          }
-        }
-      } else {
-        await Share.shareXFiles(
-          [
-            XFile(
-              pdfPath.path,
-              name: 'Mobile_Analysis.pdf',
-              mimeType: 'application/pdf',
-            ),
-          ],
-          subject: 'Mobile Number Analysis',
-          text: 'Check out my Mobile Number Analysis from Aank Sastra! ✨',
-        );
-      }
+      await Share.shareXFiles(
+        [
+          XFile(
+            pdfPath.path,
+            name: 'Mobile_Analysis.pdf',
+            mimeType: 'application/pdf',
+          ),
+        ],
+        subject: 'Mobile Number Analysis Report',
+        text: 'My Mobile Number Analysis from Aank Sastra! ✨',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -779,8 +788,9 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
     String lang,
     String text,
     PdfColor color,
-    pw.Font font,
-  ) {
+    pw.Font font, {
+    Uint8List? imageBytes,
+  }) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -801,10 +811,23 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ),
         ),
         pw.SizedBox(height: 4),
-        pw.Text(
-          text,
-          style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.black),
-        ),
+        if (imageBytes != null)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 2),
+            child: pw.Image(
+              pw.MemoryImage(imageBytes),
+              height: 22, // Matches the scale of 12pt text
+            ),
+          )
+        else
+          pw.Text(
+            text,
+            style: pw.TextStyle(
+              font: font,
+              fontSize: 12,
+              color: PdfColors.black,
+            ),
+          ),
       ],
     );
   }
@@ -1351,7 +1374,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
               Expanded(
                 child: _buildDobStatCard(
                   label: 'Conductor Number',
-                  labelHi: 'संचાલક संख्या',
+                  labelHi: 'संचાલक संख्या',
                   labelGu: 'કન્ડક્ટર નંબર',
                   value: _conductorNumber!,
                   color: AppColors.vip,
@@ -1420,55 +1443,68 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // ── Automated Grid ──
                             Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                const Text(
-                                  'Automated Grid',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.vip,
+                                SizedBox(
+                                  height: 48,
+                                  child: Center(
+                                    child: const Text(
+                                      'Automated Grid',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.vip,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 8),
                                 _buildDynamicLoShuGrid(),
                               ],
                             ),
                             const SizedBox(width: 80),
+                            // ── Manual Grid ──
                             Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text(
-                                      'Manual Grid',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                                SizedBox(
+                                  height: 48,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        'Manual Grid',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          for (var c
-                                              in _manualCellControllers
-                                                  .values) {
-                                            c.clear();
-                                          }
-                                        });
-                                      },
-                                      icon: const Icon(
-                                        Icons.refresh,
-                                        size: 20,
-                                        color: AppColors.error,
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            for (var c
+                                                in _manualCellControllers
+                                                    .values) {
+                                              c.clear();
+                                            }
+                                          });
+                                        },
+                                        icon: const Icon(
+                                          Icons.refresh,
+                                          size: 20,
+                                          color: AppColors.error,
+                                        ),
+                                        tooltip: 'Clear Manual Grid',
                                       ),
-                                      tooltip: 'Clear Manual Grid',
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 8),
                                 _buildManualGridTab(),
                               ],
                             ),
@@ -1843,9 +1879,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
 
     return Container(
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isPresent ? info['color'] : Colors.grey[200],
-      ),
+      decoration: BoxDecoration(color: info['color']),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -1854,7 +1888,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
             style: TextStyle(
               fontSize: 48,
               fontWeight: FontWeight.w900,
-              color: isPresent ? Colors.black : Colors.grey[400],
+              color: Colors.black,
               height: 1.1,
             ),
           ),
@@ -1863,7 +1897,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w900,
-              color: isPresent ? Colors.black : Colors.grey[400],
+              color: Colors.black,
               letterSpacing: 1.2,
             ),
           ),
@@ -1883,7 +1917,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       {
         'numbers': '357',
         'en': 'Emotional Plane',
-        'hi': 'इમોશનલ પ્લેन',
+        'hi': 'इમોશનલ प्लेन',
         'gu': 'ભાવનાત્મક સ્તર',
       },
       {
@@ -1901,7 +1935,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       {
         'numbers': '951',
         'en': 'Will Plane',
-        'hi': 'વિલ પ્લેન',
+        'hi': 'વિલ प्लेन',
         'gu': 'ઈચ્છા સ્તર',
       },
       {
@@ -1913,7 +1947,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       {
         'numbers': '456',
         'en': 'Golden Plane',
-        'hi': 'ગોલ્ડન પ્લેન',
+        'hi': 'ગોલ્ડન प्लेन',
         'gu': 'સુવર્ણ સ્તર',
       },
       {'numbers': '258', 'en': 'Rajyog', 'hi': 'રાજયોગ', 'gu': 'રાજયોગ'},
@@ -2350,66 +2384,24 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
   }
 
   Widget _buildManualGridTab() {
-    return Column(
-      children: [
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  color: const Color(0xFF00B050),
-                  child: const Center(
-                    child: Text(
-                      'LOShUGRID',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(4),
-                  color: Colors.black,
-                  child: AspectRatio(
-                    aspectRatio: 1.0,
-                    child: GridView.count(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 2,
-                      crossAxisSpacing: 2,
-                      padding: EdgeInsets.zero,
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      children:
-                          [4, 9, 2, 3, 5, 7, 8, 1, 6].map((n) {
-                            return _buildEditableGridCell(n);
-                          }).toList(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return Container(
+      width: 320,
+      height: 320,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        border: Border.all(color: Colors.black, width: 4),
+      ),
+      child: GridView.count(
+        crossAxisCount: 3,
+        mainAxisSpacing: 2,
+        crossAxisSpacing: 2,
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        children:
+            [4, 9, 2, 3, 5, 7, 8, 1, 6].map((n) {
+              return _buildEditableGridCell(n);
+            }).toList(),
+      ),
     );
   }
 
@@ -2765,48 +2757,17 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      if (Platform.isWindows) {
-        String? outputFile = await FilePicker.saveFile(
-          dialogTitle: 'Save Name Analysis PDF',
-          fileName: 'Name_Analysis_${name.replaceAll(' ', '_')}.pdf',
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
-        );
-
-        if (outputFile != null) {
-          if (!outputFile.toLowerCase().endsWith('.pdf')) {
-            outputFile += '.pdf';
-          }
-          final savedFile = File(outputFile);
-          await savedFile.writeAsBytes(pdfBytes);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Report saved successfully!'),
-                action: SnackBarAction(
-                  label: 'Open Folder',
-                  onPressed: () {
-                    Process.run('explorer.exe', ['/select,', outputFile!]);
-                  },
-                ),
-              ),
-            );
-          }
-        }
-      } else {
-        await Share.shareXFiles(
-          [
-            XFile(
-              pdfPath.path,
-              name: 'Name_Analysis.pdf',
-              mimeType: 'application/pdf',
-            ),
-          ],
-          subject: 'Name Numerology Analysis',
-          text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
-        );
-      }
+      await Share.shareXFiles(
+        [
+          XFile(
+            pdfPath.path,
+            name: 'Name_Analysis.pdf',
+            mimeType: 'application/pdf',
+          ),
+        ],
+        subject: 'Name Numerology Analysis',
+        text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -2846,6 +2807,20 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       final boldFont = await PdfGoogleFonts.poppinsBold();
       final hindiFont = await PdfGoogleFonts.notoSerifDevanagariRegular();
       final gujaratiFont = await PdfGoogleFonts.notoSansGujaratiRegular();
+
+      // Pre-capture Indic text as high-res images to fix broken PDF shaping
+      Uint8List? hindiImage;
+      Uint8List? gujaratiImage;
+      if (_dcRelationship != null) {
+        hindiImage = await _captureTextAsImage(
+          _dcRelationship!['meaning_hi'] ?? '',
+          color: Colors.purple[700]!,
+        );
+        gujaratiImage = await _captureTextAsImage(
+          _dcRelationship!['meaning_gu'] ?? '',
+          color: Colors.green[700]!,
+        );
+      }
 
       pdf.addPage(
         pw.MultiPage(
@@ -2962,24 +2937,78 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
 
                 pw.SizedBox(height: 40),
 
-                // Grid
-                pw.Center(
-                  child: pw.Container(
-                    width: 300,
-                    height: 300,
-                    decoration: const pw.BoxDecoration(color: PdfColors.black),
-                    child: pw.GridView(
-                      crossAxisCount: 3,
-                      children:
-                          [4, 9, 2, 3, 5, 7, 8, 1, 6].map((n) {
-                            return _buildPdfGridCell(
-                              n,
-                              isPresent: _dobPresentNumbers.contains(n),
-                              font: boldFont,
-                            );
-                          }).toList(),
+                // Both Grids Side by Side
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.center,
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // ── Automated Grid ──
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Automated Grid',
+                          style: pw.TextStyle(
+                            font: boldFont,
+                            fontSize: 13,
+                            color: PdfColors.amber800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 8),
+                        pw.Container(
+                          width: 210,
+                          height: 210,
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColors.black,
+                          ),
+                          child: pw.GridView(
+                            crossAxisCount: 3,
+                            children:
+                                [4, 9, 2, 3, 5, 7, 8, 1, 6].map((n) {
+                                  return _buildPdfGridCell(
+                                    n,
+                                    isPresent: _dobPresentNumbers.contains(n),
+                                    font: boldFont,
+                                  );
+                                }).toList(),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    pw.SizedBox(width: 40),
+                    // ── Manual Grid ──
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Manual Grid',
+                          style: pw.TextStyle(
+                            font: boldFont,
+                            fontSize: 13,
+                            color: PdfColors.green800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 8),
+                        pw.Container(
+                          width: 210,
+                          height: 210,
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColors.black,
+                          ),
+                          child: pw.GridView(
+                            crossAxisCount: 3,
+                            children:
+                                [4, 9, 2, 3, 5, 7, 8, 1, 6].map((n) {
+                                  return _buildPdfManualGridCell(
+                                    n,
+                                    font: boldFont,
+                                  );
+                                }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
 
                 pw.SizedBox(height: 40),
@@ -3002,17 +3031,19 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                   ),
                   pw.SizedBox(height: 12),
                   _buildPdfLangItem(
-                    'हिन्दी',
+                    'Hindi',
                     _dcRelationship!['meaning_hi'] ?? '',
                     PdfColors.purple700,
                     hindiFont,
+                    imageBytes: hindiImage,
                   ),
                   pw.SizedBox(height: 12),
                   _buildPdfLangItem(
-                    'ગુજરાતી',
+                    'Gujarati',
                     _dcRelationship!['meaning_gu'] ?? '',
                     PdfColors.green700,
                     gujaratiFont,
+                    imageBytes: gujaratiImage,
                   ),
                 ],
               ],
@@ -3030,49 +3061,18 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      if (Platform.isWindows) {
-        String? outputFile = await FilePicker.saveFile(
-          dialogTitle: 'Save DOB Analysis PDF',
-          fileName: 'DOB_Analysis_${dob.replaceAll('/', '_')}.pdf',
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
-        );
-
-        if (outputFile != null) {
-          if (!outputFile.toLowerCase().endsWith('.pdf')) {
-            outputFile += '.pdf';
-          }
-          final savedFile = File(outputFile);
-          await savedFile.writeAsBytes(pdfBytes);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Analysis Report saved!'),
-                action: SnackBarAction(
-                  label: 'Open Folder',
-                  onPressed: () {
-                    Process.run('explorer.exe', ['/select,', outputFile!]);
-                  },
-                ),
-              ),
-            );
-          }
-        }
-      } else {
-        await Share.shareXFiles(
-          [
-            XFile(
-              pdfPath.path,
-              name: 'DOB_Analysis.pdf',
-              mimeType: 'application/pdf',
-            ),
-          ],
-          subject: 'Numerology Analysis Report',
-          text:
-              'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
-        );
-      }
+      await Share.shareXFiles(
+        [
+          XFile(
+            pdfPath.path,
+            name: 'DOB_Analysis.pdf',
+            mimeType: 'application/pdf',
+          ),
+        ],
+        subject: 'Numerology Analysis Report',
+        text:
+            'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -3144,7 +3144,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
     return pw.Container(
       alignment: pw.Alignment.center,
       decoration: pw.BoxDecoration(
-        color: isPresent ? colors[val] : PdfColors.grey100,
+        color: colors[val],
         border: pw.Border.all(color: PdfColors.black, width: 0.5),
       ),
       child: pw.Column(
@@ -3155,7 +3155,7 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
             style: pw.TextStyle(
               fontSize: 32,
               fontWeight: pw.FontWeight.bold,
-              color: isPresent ? PdfColors.black : PdfColors.grey300,
+              color: PdfColors.black,
               font: font,
             ),
           ),
@@ -3164,7 +3164,67 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
             style: pw.TextStyle(
               fontSize: 8,
               fontWeight: pw.FontWeight.bold,
-              color: isPresent ? PdfColors.black : PdfColors.grey300,
+              color: PdfColors.black,
+              font: font,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfManualGridCell(int val, {required pw.Font font}) {
+    final Map<int, PdfColor> colors = {
+      4: PdfColors.red,
+      9: PdfColors.lightGreen200,
+      2: PdfColors.amber100,
+      3: PdfColors.green300,
+      5: PdfColors.blue50,
+      7: PdfColors.blue200,
+      8: PdfColors.orange100,
+      1: PdfColors.deepPurple50,
+      6: PdfColors.yellow50,
+    };
+
+    final Map<int, String> planetNames = {
+      4: 'RAHU',
+      9: 'MARS',
+      2: 'MOON',
+      3: 'JUPITER',
+      5: 'MERCURY',
+      7: 'KETU',
+      8: 'SATURN',
+      1: 'SUN',
+      6: 'VENUS',
+    };
+
+    // Read typed value from manual cell controller
+    final enteredText = _manualCellControllers[val]?.text.trim() ?? '';
+
+    return pw.Container(
+      alignment: pw.Alignment.center,
+      decoration: pw.BoxDecoration(
+        color: colors[val],
+        border: pw.Border.all(color: PdfColors.black, width: 0.5),
+      ),
+      child: pw.Column(
+        mainAxisAlignment: pw.MainAxisAlignment.center,
+        children: [
+          pw.Text(
+            enteredText.isEmpty ? ' ' : enteredText,
+            style: pw.TextStyle(
+              fontSize: 32,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.black,
+              font: font,
+            ),
+          ),
+          pw.Text(
+            planetNames[val] ?? '',
+            style: pw.TextStyle(
+              fontSize: 8,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.black,
               font: font,
             ),
           ),
