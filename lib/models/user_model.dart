@@ -70,15 +70,19 @@ class User {
 
     for (var p in permissions) {
       if (p['module'] == module) {
+        bool check(dynamic value) {
+          return value == 1 || value == '1' || value == true;
+        }
+
         switch (action) {
           case 'view':
-            return p['can_view'] == 1 || p['can_view'] == true;
+            return check(p['can_view']);
           case 'create':
-            return p['can_create'] == 1 || p['can_create'] == true;
+            return check(p['can_create']);
           case 'edit':
-            return p['can_edit'] == 1 || p['can_edit'] == true;
+            return check(p['can_edit']);
           case 'delete':
-            return p['can_delete'] == 1 || p['can_delete'] == true;
+            return check(p['can_delete']);
         }
       }
     }

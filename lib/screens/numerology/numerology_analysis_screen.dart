@@ -768,23 +768,24 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        String? outputFile = await FilePicker.saveFile(
-          dialogTitle: 'Save Mobile Analysis PDF',
-          fileName: 'Mobile_Analysis_$mobile.pdf',
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
-        );
+        final dir = await getDownloadsDirectory() ??
+            await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/Mobile_Analysis_$mobile.pdf';
+        await File(path).writeAsBytes(pdfBytes);
 
-        if (outputFile != null) {
-          if (!outputFile.toLowerCase().endsWith('.pdf')) {
-            outputFile += '.pdf';
-          }
-          await File(outputFile).writeAsBytes(pdfBytes);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Report saved to $outputFile')),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Report saved to Downloads!'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Open Folder',
+                onPressed: () {
+                  Process.run('explorer.exe', [dir.path]);
+                },
+              ),
+            ),
+          );
         }
       } else {
         await Share.shareXFiles(
@@ -2782,23 +2783,25 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        String? outputFile = await FilePicker.saveFile(
-          dialogTitle: 'Save Name Analysis PDF',
-          fileName: 'Name_Analysis_${name.replaceAll(' ', '_')}.pdf',
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
-        );
+        final dir = await getDownloadsDirectory() ??
+            await getApplicationDocumentsDirectory();
+        final path =
+            '${dir.path}/Name_Analysis_${name.replaceAll(' ', '_')}.pdf';
+        await File(path).writeAsBytes(pdfBytes);
 
-        if (outputFile != null) {
-          if (!outputFile.toLowerCase().endsWith('.pdf')) {
-            outputFile += '.pdf';
-          }
-          await File(outputFile).writeAsBytes(pdfBytes);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Analysis saved to $outputFile')),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Report saved to Downloads!'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Open Folder',
+                onPressed: () {
+                  Process.run('explorer.exe', [dir.path]);
+                },
+              ),
+            ),
+          );
         }
       } else {
         await Share.shareXFiles(
@@ -3107,23 +3110,24 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        String? outputFile = await FilePicker.saveFile(
-          dialogTitle: 'Save DOB Analysis PDF',
-          fileName: 'DOB_Analysis_${dob.replaceAll('/', '_')}.pdf',
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
-        );
+        final dir = await getDownloadsDirectory() ??
+            await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/DOB_Analysis_${dob.replaceAll('/', '_')}.pdf';
+        await File(path).writeAsBytes(pdfBytes);
 
-        if (outputFile != null) {
-          if (!outputFile.toLowerCase().endsWith('.pdf')) {
-            outputFile += '.pdf';
-          }
-          await File(outputFile).writeAsBytes(pdfBytes);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Analysis saved to $outputFile')),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Report saved to Downloads!'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Open Folder',
+                onPressed: () {
+                  Process.run('explorer.exe', [dir.path]);
+                },
+              ),
+            ),
+          );
         }
       } else {
         await Share.shareXFiles(
