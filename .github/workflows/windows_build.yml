@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows Installer
 
 on:
   push:
@@ -10,25 +10,53 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # ── 1. Checkout Code ────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # ── 2. Setup Flutter ────────────────────────────────────────────
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
 
+      # ── 3. Enable Windows Desktop Support ───────────────────────────
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      # ── 4. Install Dart/Flutter dependencies ────────────────────────
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Enable Windows support
-        run: flutter config --enable-windows-desktop
-
-      - name: Build Windows
+      # ── 5. Build Flutter Windows Release ────────────────────────────
+      - name: Build Windows Release
         run: flutter build windows --release
 
-      - name: Archive production artifacts
+      # ── 6. Install Inno Setup 6 ─────────────────────────────────────
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --version=6.4.3 -y
+        shell: powershell
+
+      # ── 7. Compile Installer with Inno Setup ────────────────────────
+      - name: Build Installer (.exe)
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\aank_sastra_installer.iss"
+        shell: powershell
+
+      # ── 8. Upload Raw Build Artifacts ───────────────────────────────
+      - name: Upload raw Windows build
         uses: actions/upload-artifact@v4
         with:
-          name: windows-executables
+          name: windows-raw-build
           path: build/windows/x64/runner/Release/
+          retention-days: 7
+
+      # ── 9. Upload Installer ─────────────────────────────────────────
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: AankSastra-Windows-Installer
+          path: build/installer/AankSastra_Setup_v*.exe
+          retention-days: 30
