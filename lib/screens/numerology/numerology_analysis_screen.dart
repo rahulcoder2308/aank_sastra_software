@@ -773,7 +773,10 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ),
         ],
         subject: 'Mobile Number Analysis Report',
-        text: 'My Mobile Number Analysis from Aank Sastra! ✨',
+        text:
+            Platform.isWindows
+                ? null
+                : 'My Mobile Number Analysis from Aank Sastra! ✨',
       );
     } catch (e) {
       if (mounted) {
@@ -2766,7 +2769,10 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ),
         ],
         subject: 'Name Numerology Analysis',
-        text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
+        text:
+            Platform.isWindows
+                ? null
+                : 'My Chaldean Name Analysis from Aank Sastra! ✨',
       );
     } catch (e) {
       if (mounted) {
@@ -3071,7 +3077,9 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
         ],
         subject: 'Numerology Analysis Report',
         text:
-            'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
+            Platform.isWindows
+                ? null
+                : 'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
       );
     } catch (e) {
       if (mounted) {
