@@ -768,9 +768,9 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.sharePdf(
-          bytes: pdfBytes,
-          filename: 'Mobile_Analysis.pdf',
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfBytes,
+          name: 'Mobile_Analysis',
         );
       } else {
         await Share.shareXFiles(
@@ -2767,20 +2767,24 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            pdfPath.path,
-            name: 'Name_Analysis.pdf',
-            mimeType: 'application/pdf',
-          ),
-        ],
-        subject: 'Name Numerology Analysis',
-        text:
-            Platform.isWindows
-                ? null
-                : 'My Chaldean Name Analysis from Aank Sastra! ✨',
-      );
+      if (Platform.isWindows) {
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfBytes,
+          name: 'Name_Analysis',
+        );
+      } else {
+        await Share.shareXFiles(
+          [
+            XFile(
+              pdfPath.path,
+              name: 'Name_Analysis.pdf',
+              mimeType: 'application/pdf',
+            ),
+          ],
+          subject: 'Name Numerology Analysis',
+          text: 'My Chaldean Name Analysis from Aank Sastra! ✨',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -3075,7 +3079,10 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.sharePdf(bytes: pdfBytes, filename: 'DOB_Analysis.pdf');
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfBytes,
+          name: 'DOB_Analysis',
+        );
       } else {
         await Share.shareXFiles(
           [
