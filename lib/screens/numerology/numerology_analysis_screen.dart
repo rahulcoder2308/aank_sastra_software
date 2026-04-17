@@ -735,14 +735,14 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                               ),
                               pw.SizedBox(height: 12),
                               _buildPdfLangItem(
-                                'हिन्दी',
+                                'Hindi',
                                 meaning['hi'] ?? '',
                                 PdfColors.purple700,
                                 hindiFont,
                               ),
                               pw.SizedBox(height: 12),
                               _buildPdfLangItem(
-                                'ગુજરાતી',
+                                'Gujarati',
                                 meaning['gu'] ?? '',
                                 PdfColors.green700,
                                 gujaratiFont,
@@ -767,20 +767,24 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            pdfPath.path,
-            name: 'Mobile_Analysis.pdf',
-            mimeType: 'application/pdf',
-          ),
-        ],
-        subject: 'Mobile Number Analysis Report',
-        text:
-            Platform.isWindows
-                ? null
-                : 'My Mobile Number Analysis from Aank Sastra! ✨',
-      );
+      if (Platform.isWindows) {
+        await Printing.sharePdf(
+          bytes: pdfBytes,
+          filename: 'Mobile_Analysis.pdf',
+        );
+      } else {
+        await Share.shareXFiles(
+          [
+            XFile(
+              pdfPath.path,
+              name: 'Mobile_Analysis.pdf',
+              mimeType: 'application/pdf',
+            ),
+          ],
+          subject: 'Mobile Number Analysis Report',
+          text: 'My Mobile Number Analysis from Aank Sastra! ✨',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -3070,20 +3074,22 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ).create();
       await pdfPath.writeAsBytes(pdfBytes);
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            pdfPath.path,
-            name: 'DOB_Analysis.pdf',
-            mimeType: 'application/pdf',
-          ),
-        ],
-        subject: 'Numerology Analysis Report',
-        text:
-            Platform.isWindows
-                ? null
-                : 'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
-      );
+      if (Platform.isWindows) {
+        await Printing.sharePdf(bytes: pdfBytes, filename: 'DOB_Analysis.pdf');
+      } else {
+        await Share.shareXFiles(
+          [
+            XFile(
+              pdfPath.path,
+              name: 'DOB_Analysis.pdf',
+              mimeType: 'application/pdf',
+            ),
+          ],
+          subject: 'Numerology Analysis Report',
+          text:
+              'My Lo Shu Grid Analysis from Aank Sastra! ✨ #Numerology #AankSastra',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
