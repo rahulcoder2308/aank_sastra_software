@@ -21,46 +21,41 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # ── 3. Enable Windows Desktop Support ───────────────────────────
+      # ── 3. Cache Pub dependencies ───────────────────────────────────
+      - name: Cache Pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.LOCALAPPDATA }}\Pub\Cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # ── 4. Enable Windows Desktop Support ───────────────────────────
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
-      # ── 4. Install Dart/Flutter dependencies ────────────────────────
+      # ── 5. Install Dart/Flutter dependencies ────────────────────────
       - name: Install dependencies
         run: flutter pub get
 
-      # ── 5. Build Flutter Windows Release ────────────────────────────
+      # ── 6. Build Flutter Windows Release ────────────────────────────
       - name: Build Windows Release
         run: flutter build windows --release
 
-      # ── 6. Ensure Inno Setup is available ──────────────────────────
-      - name: Install / Verify Inno Setup
-        run: |
-          # Install latest version; --force prevents failure if already installed
-          choco install innosetup -y --force
-        shell: powershell
-
       # ── 7. Compile Installer with Inno Setup ────────────────────────
+      # Note: Inno Setup is pre-installed on the windows-latest runner
       - name: Build Installer (.exe)
         run: |
-          # Find ISCC.exe regardless of exact Inno Setup version installed
-          $iscc = Get-ChildItem "C:\Program Files (x86)\Inno Setup*\ISCC.exe" | Select-Object -First 1 -ExpandProperty FullName
-          Write-Host "Using Inno Setup compiler: $iscc"
-          & $iscc "installer\aank_sastra_installer.iss"
+          # Use pre-installed Inno Setup compiler (ISCC.exe)
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\aank_sastra_installer.iss"
         shell: powershell
 
-      # ── 8. Upload Raw Build Artifacts ───────────────────────────────
-      - name: Upload raw Windows build
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-raw-build
-          path: build/windows/x64/runner/Release/
-          retention-days: 7
-
-      # ── 9. Upload Installer ─────────────────────────────────────────
+      # ── 8. Upload Artifacts (Compression prioritized) ────────────────
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: AankSastra-Windows-Installer
           path: build/installer/AankSastra_Setup_v*.exe
-          retention-days: 30
+          retention-days: 14
+          compression-level: 9

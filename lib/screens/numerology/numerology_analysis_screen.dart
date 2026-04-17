@@ -759,7 +759,10 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       );
 
       final pdfBytes = await pdf.save();
-      final directory = await getTemporaryDirectory();
+      final directory =
+          Platform.isWindows
+              ? await getApplicationDocumentsDirectory()
+              : await getTemporaryDirectory();
       final pdfPath =
           await File('${directory.path}/mobile_analysis_$mobile.pdf').create();
       await pdfPath.writeAsBytes(pdfBytes);
