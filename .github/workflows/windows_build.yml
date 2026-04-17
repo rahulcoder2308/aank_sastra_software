@@ -45,6 +45,11 @@ jobs:
 
       # ── 7. Compile Installer with Inno Setup ────────────────────────
       # Note: Inno Setup is pre-installed on the windows-latest runner
+      - name: Download VC++ Redistributable
+        run: |
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile "installer\vc_redist.x64.exe"
+        shell: powershell
+
       - name: Build Installer (.exe)
         run: |
           # Use pre-installed Inno Setup compiler (ISCC.exe)
