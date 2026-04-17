@@ -768,10 +768,19 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'Mobile_Analysis',
-        );
+        // Optimized for Windows: Save to Documents and highlight in Explorer for easy drag-drop
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Opening folder with your report...'),
+              action: SnackBarAction(
+                label: 'Dismiss',
+                onPressed: () {},
+              ),
+            ),
+          );
+        }
+        await Process.run('explorer.exe', ['/select,', pdfPath.path]);
       } else {
         await Share.shareXFiles(
           [
@@ -2768,10 +2777,12 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'Name_Analysis',
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Opening folder with your report...')),
+          );
+        }
+        await Process.run('explorer.exe', ['/select,', pdfPath.path]);
       } else {
         await Share.shareXFiles(
           [
@@ -3079,10 +3090,12 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'DOB_Analysis',
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Opening folder with your report...')),
+          );
+        }
+        await Process.run('explorer.exe', ['/select,', pdfPath.path]);
       } else {
         await Share.shareXFiles(
           [
