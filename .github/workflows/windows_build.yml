@@ -33,16 +33,20 @@ jobs:
       - name: Build Windows Release
         run: flutter build windows --release
 
-      # ── 6. Install Inno Setup 6 ─────────────────────────────────────
-      - name: Install Inno Setup
+      # ── 6. Ensure Inno Setup is available ──────────────────────────
+      - name: Install / Verify Inno Setup
         run: |
-          choco install innosetup --version=6.4.3 -y
+          # Install latest version; --force prevents failure if already installed
+          choco install innosetup -y --force
         shell: powershell
 
       # ── 7. Compile Installer with Inno Setup ────────────────────────
       - name: Build Installer (.exe)
         run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\aank_sastra_installer.iss"
+          # Find ISCC.exe regardless of exact Inno Setup version installed
+          $iscc = Get-ChildItem "C:\Program Files (x86)\Inno Setup*\ISCC.exe" | Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "Using Inno Setup compiler: $iscc"
+          & $iscc "installer\aank_sastra_installer.iss"
         shell: powershell
 
       # ── 8. Upload Raw Build Artifacts ───────────────────────────────
