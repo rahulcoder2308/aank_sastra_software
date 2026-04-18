@@ -90,17 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.auto_awesome,
-                                color: Colors.white,
-                                size: 48,
-                              ),
+                            Image.asset(
+                              'assets/images/logo_symbol.jpg',
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.contain,
                             ),
                             const SizedBox(height: 32),
                             const Text(

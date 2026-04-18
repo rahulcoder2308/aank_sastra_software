@@ -135,17 +135,11 @@ class Sidebar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                Image.asset(
+                  'assets/images/logo_symbol.jpg',
+                  width: 24,
+                  height: 24,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(width: 12),
                 const Flexible(

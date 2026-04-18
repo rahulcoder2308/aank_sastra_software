@@ -70,7 +70,9 @@ class MyApp extends StatelessWidget {
       ),
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
-          print("MyApp: Auth status changed. isAuthenticated: ${auth.isAuthenticated}");
+          print(
+            "MyApp: Auth status changed. isAuthenticated: ${auth.isAuthenticated}",
+          );
           if (auth.isAuthenticated) {
             return const MainScreen(key: ValueKey('MainScreen'));
           } else {

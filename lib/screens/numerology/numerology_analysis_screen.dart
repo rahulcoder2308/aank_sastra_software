@@ -78,6 +78,8 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
   int? _conductorNumber;
   int? _kuaNumber;
   String _gender = 'Male';
+  int? _mobileTotalSum;
+  int? _mobileSingleDigit;
   Set<int> _manualGridNumbers = {};
 
   final Map<String, Map<String, String>> _repeatingPatterns = {
@@ -247,6 +249,22 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       final result = await ApiService.analyzeMobile(mobile);
       setState(() {
         _mobileAnalysisResults = result['analysis'];
+
+        // Calculate mobile digit sums
+        _mobileTotalSum = mobile
+            .split('')
+            .map(int.parse)
+            .reduce((a, b) => a + b);
+        int single = _mobileTotalSum!;
+        while (single > 9) {
+          single = single
+              .toString()
+              .split('')
+              .map(int.parse)
+              .reduce((a, b) => a + b);
+        }
+        _mobileSingleDigit = single;
+
         _mobileAnalyzed = true;
         _isMobileLoading = false;
       });
@@ -602,6 +620,41 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                           color: PdfColors.blue700,
                         ),
                       ),
+                      pw.SizedBox(height: 12),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.blue50,
+                          borderRadius: const pw.BorderRadius.all(
+                            pw.Radius.circular(12),
+                          ),
+                        ),
+                        child: pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text(
+                              'Digit Calculation',
+                              style: pw.TextStyle(
+                                font: boldFont,
+                                fontSize: 12,
+                                color: PdfColors.blueGrey700,
+                              ),
+                            ),
+                            pw.Text(
+                              '$mobile = $_mobileTotalSum = $_mobileSingleDigit',
+                              style: pw.TextStyle(
+                                font: boldFont,
+                                fontSize: 20,
+                                color: PdfColors.blue700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      pw.SizedBox(height: 16),
                       pw.Divider(thickness: 1, color: PdfColors.blueGrey100),
                     ],
                   ),
@@ -768,7 +821,8 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        final dir = await getDownloadsDirectory() ??
+        final dir =
+            await getDownloadsDirectory() ??
             await getApplicationDocumentsDirectory();
         final path = '${dir.path}/Mobile_Analysis_$mobile.pdf';
         await File(path).writeAsBytes(pdfBytes);
@@ -1066,6 +1120,51 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
           ],
         ),
         if (_mobileAnalyzed) ...[
+          const SizedBox(height: 40),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary, const Color(0xFF1B5E20)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'TOTAL DIGIT CALCULATION',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FittedBox(
+                  child: Text(
+                    '${_mobileController.text} = $_mobileTotalSum = $_mobileSingleDigit',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 40),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2783,7 +2882,8 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        final dir = await getDownloadsDirectory() ??
+        final dir =
+            await getDownloadsDirectory() ??
             await getApplicationDocumentsDirectory();
         final path =
             '${dir.path}/Name_Analysis_${name.replaceAll(' ', '_')}.pdf';
@@ -3110,7 +3210,8 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
       await pdfPath.writeAsBytes(pdfBytes);
 
       if (Platform.isWindows) {
-        final dir = await getDownloadsDirectory() ??
+        final dir =
+            await getDownloadsDirectory() ??
             await getApplicationDocumentsDirectory();
         final path = '${dir.path}/DOB_Analysis_${dob.replaceAll('/', '_')}.pdf';
         await File(path).writeAsBytes(pdfBytes);
