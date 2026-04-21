@@ -293,7 +293,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
     return TextField(
       controller: _searchController,
       decoration: InputDecoration(
-        hintText: 'Search by customer name...',
+        hintText: 'Search by mobile number...',
         prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
         filled: true,
         fillColor: Colors.grey[50],
@@ -616,12 +616,26 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                         children: [
                           Expanded(
                             flex: 3,
-                            child: Text(
-                              p['customer_name'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  p['customer_name'] ?? 'Walk-in',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  p['city'] ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           Expanded(
@@ -1002,19 +1016,11 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                 ),
                 pw.SizedBox(height: 20),
                 pw.TableHelper.fromTextArray(
-                  headers: [
-                    'Date',
-                    'Customer',
-                    'Type',
-                    'Total',
-                    'Paid',
-                    'Mode',
-                  ],
+                  headers: ['Date', 'Type', 'Total', 'Paid', 'Mode'],
                   data:
                       payments.map<List<dynamic>>((p) {
                         return [
                           p['payment_date'],
-                          p['customer_name'],
                           p['payment_type'] ?? 'Report',
                           'INR ${p['total_amount']}',
                           'INR ${p['paid_amount']}',
@@ -1029,10 +1035,9 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                   cellAlignments: {
                     0: pw.Alignment.centerLeft,
                     1: pw.Alignment.centerLeft,
-                    2: pw.Alignment.centerLeft,
+                    2: pw.Alignment.centerRight,
                     3: pw.Alignment.centerRight,
-                    4: pw.Alignment.centerRight,
-                    5: pw.Alignment.center,
+                    4: pw.Alignment.center,
                   },
                 ),
               ];
@@ -1141,7 +1146,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Are you sure you want to delete payment record for ${item['customer_name']}?',
+                          'Are you sure you want to delete payment record for ${item['customer']?['mobile'] ?? 'Unknown'}?',
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textPrimary,
@@ -1184,9 +1189,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                                     _fetchPayments();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text(
-                                          'Payment for ${item['customer_name']} deleted',
-                                        ),
+                                        content: Text('Payment deleted'),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
@@ -1254,7 +1257,9 @@ class PaymentModal extends StatefulWidget {
 
 class _PaymentModalState extends State<PaymentModal> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _customerController;
+  late TextEditingController _mobileController;
+  late TextEditingController _nameController;
+  late TextEditingController _cityController;
   late TextEditingController _totalController;
   late TextEditingController _paidController;
   late String _selectedMode;
@@ -1266,8 +1271,14 @@ class _PaymentModalState extends State<PaymentModal> {
   @override
   void initState() {
     super.initState();
-    _customerController = TextEditingController(
+    _mobileController = TextEditingController(
+      text: widget.paymentData?['customer']?['mobile'] ?? '',
+    );
+    _nameController = TextEditingController(
       text: widget.paymentData?['customer_name'] ?? '',
+    );
+    _cityController = TextEditingController(
+      text: widget.paymentData?['city'] ?? '',
     );
     _totalController = TextEditingController(
       text: (widget.paymentData?['total_amount'] ?? 0).toString(),
@@ -1289,7 +1300,9 @@ class _PaymentModalState extends State<PaymentModal> {
 
   @override
   void dispose() {
-    _customerController.dispose();
+    _mobileController.dispose();
+    _nameController.dispose();
+    _cityController.dispose();
     _totalController.dispose();
     _paidController.dispose();
     super.dispose();
@@ -1382,6 +1395,30 @@ class _PaymentModalState extends State<PaymentModal> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
+                      'CUSTOMER DETAILS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: _buildCustomerAutocomplete(),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(_cityController, 'City'),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+                    const Text(
                       'CUSTOMER NAME',
                       style: TextStyle(
                         fontSize: 11,
@@ -1391,7 +1428,7 @@ class _PaymentModalState extends State<PaymentModal> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _buildCustomerAutocomplete(),
+                    _buildTextField(_nameController, 'e.g. John Doe'),
 
                     const SizedBox(height: 20),
                     Column(
@@ -1622,8 +1659,9 @@ class _PaymentModalState extends State<PaymentModal> {
       setState(() => _isSaving = true);
       try {
         final data = {
-          'customer_name': _customerController.text,
           'customer_id': _selectedCustomerId,
+          'customer_name': _nameController.text,
+          'city': _cityController.text,
           'payment_type': _selectedType,
           'total_amount': _totalController.text,
           'paid_amount': _paidController.text,
@@ -1684,25 +1722,28 @@ class _PaymentModalState extends State<PaymentModal> {
         }
         return const Iterable<Map<String, dynamic>>.empty();
       },
-      displayStringForOption: (option) => option['name'],
-      onSelected: (selection) {
+      displayStringForOption:
+          (Map<String, dynamic> option) => option['mobile'] ?? '',
+      onSelected: (Map<String, dynamic> selection) {
         setState(() {
-          _customerController.text = selection['name'];
           _selectedCustomerId = selection['id'];
+          _mobileController.text = selection['mobile'] ?? '';
+          _nameController.text = selection['name'] ?? '';
+          _cityController.text = selection['city'] ?? '';
         });
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        if (_customerController.text.isNotEmpty && controller.text.isEmpty) {
-          controller.text = _customerController.text;
+        if (_mobileController.text.isNotEmpty && controller.text.isEmpty) {
+          controller.text = _mobileController.text;
         }
 
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
           onFieldSubmitted: (v) => onFieldSubmitted(),
-          onChanged: (v) => _customerController.text = v,
+          onChanged: (value) => _mobileController.text = value,
           decoration: InputDecoration(
-            hintText: 'Search customer...',
+            hintText: 'Search or enter mobile number',
             prefixIcon: const Icon(Icons.person_outline, size: 18),
             filled: true,
             fillColor: Colors.grey[50],
@@ -1755,6 +1796,26 @@ class _PaymentModalState extends State<PaymentModal> {
           validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
         ),
       ],
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String hint) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!),
+        ),
+      ),
+      validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
     );
   }
 }

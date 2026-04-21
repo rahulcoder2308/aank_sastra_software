@@ -350,10 +350,11 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                       ),
                     ),
                   ),
+
                   Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: Text(
-                      'CUSTOMER',
+                      'MOBILE',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -364,7 +365,18 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                   Expanded(
                     flex: 2,
                     child: Text(
-                      'MOBILE',
+                      'NAME',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'CITY',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -384,14 +396,15 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                     ),
                   ),
                   Expanded(
-                    flex: 1,
+                    flex: 2,
                     child: Text(
-                      'PRICE',
+                      'CHARGE',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                         color: AppColors.textPrimary,
                       ),
+                      textAlign: TextAlign.right,
                     ),
                   ),
                   Expanded(
@@ -448,21 +461,31 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                               ),
                             ),
                           ),
+
                           Expanded(
-                            flex: 3,
+                            flex: 2,
                             child: Text(
-                              inq['customer_name'] ?? '',
+                              inq['mobile_number'] ?? '',
                               style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ),
                           Expanded(
                             flex: 2,
                             child: Text(
-                              inq['mobile_number'] ?? '',
+                              inq['name'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              inq['city'] ?? '',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textSecondary,
@@ -481,35 +504,40 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                             ),
                           ),
                           Expanded(
-                            flex: 1,
+                            flex: 2,
                             child: Text(
-                              '₹${inq['price']}',
+                              '₹${inq['report_charge']}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.textPrimary,
                               ),
+                              textAlign: TextAlign.right,
                             ),
                           ),
                           Expanded(
                             flex: 2,
                             child: _buildStatusBadge(inq['status']!),
                           ),
-                           Expanded(
+                          Expanded(
                             flex: 2,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                if (user?.hasPermission('Inquiry', 'edit') ?? false)
+                                if (user?.hasPermission('Inquiry', 'edit') ??
+                                    false)
                                   _buildActionButton(
                                     icon: Icons.edit_outlined,
                                     color: Colors.blue,
                                     tooltip: 'Edit',
-                                    onTap: () => _showInquiryDialog(inquiry: inq),
+                                    onTap:
+                                        () => _showInquiryDialog(inquiry: inq),
                                   ),
-                                if (user?.hasPermission('Inquiry', 'edit') ?? false)
+                                if (user?.hasPermission('Inquiry', 'edit') ??
+                                    false)
                                   const SizedBox(width: 8),
-                                if (user?.hasPermission('Inquiry', 'delete') ?? false)
+                                if (user?.hasPermission('Inquiry', 'delete') ??
+                                    false)
                                   _buildActionButton(
                                     icon: Icons.delete_outline,
                                     color: AppColors.statusCancelled,
@@ -813,7 +841,7 @@ class _InquiryListScreenState extends State<InquiryListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Are you sure you want to delete inquiry INQ-${inquiry['id']} for ${inquiry['customer_name']}?',
+                          'Are you sure you want to delete inquiry INQ-${inquiry['id']} for ${inquiry['mobile_number']}?',
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textPrimary,
@@ -929,10 +957,12 @@ class InquiryModal extends StatefulWidget {
 class _InquiryModalState extends State<InquiryModal> {
   final _formKey = GlobalKey<FormState>();
   late String _selectedStatus;
-  late TextEditingController _customerController;
+
+  late TextEditingController _nameController;
+  late TextEditingController _cityController;
   late TextEditingController _mobileController;
   late TextEditingController _numberController;
-  late TextEditingController _priceController;
+  late TextEditingController _chargeController;
   bool _isSaving = false;
   bool _isLoadingCustomers = false;
 
@@ -940,8 +970,12 @@ class _InquiryModalState extends State<InquiryModal> {
   void initState() {
     super.initState();
     _selectedStatus = widget.inquiry?['status'] ?? 'New';
-    _customerController = TextEditingController(
-      text: widget.inquiry?['customer_name'] ?? '',
+
+    _nameController = TextEditingController(
+      text: widget.inquiry?['name'] ?? '',
+    );
+    _cityController = TextEditingController(
+      text: widget.inquiry?['city'] ?? '',
     );
     _mobileController = TextEditingController(
       text: widget.inquiry?['mobile_number'] ?? '',
@@ -949,8 +983,8 @@ class _InquiryModalState extends State<InquiryModal> {
     _numberController = TextEditingController(
       text: widget.inquiry?['selected_number'] ?? '',
     );
-    _priceController = TextEditingController(
-      text: widget.inquiry?['price']?.toString() ?? '',
+    _chargeController = TextEditingController(
+      text: widget.inquiry?['report_charge']?.toString() ?? '',
     );
   }
 
@@ -958,10 +992,12 @@ class _InquiryModalState extends State<InquiryModal> {
   void dispose() {
     // Only dispose if we are not using Autocomplete's internal controller
     // but here we are using it for editing, so we keep it.
-    _customerController.dispose();
+
+    _nameController.dispose();
+    _cityController.dispose();
     _mobileController.dispose();
     _numberController.dispose();
-    _priceController.dispose();
+    _chargeController.dispose();
     super.dispose();
   }
 
@@ -1052,6 +1088,27 @@ class _InquiryModalState extends State<InquiryModal> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
+                      'CUSTOMER DETAILS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(flex: 2, child: _buildCustomerAutocomplete()),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(_cityController, 'City'),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+                    const Text(
                       'CUSTOMER NAME',
                       style: TextStyle(
                         fontSize: 11,
@@ -1061,33 +1118,11 @@ class _InquiryModalState extends State<InquiryModal> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _buildCustomerAutocomplete(),
+                    _buildTextField(_nameController, 'e.g. John Doe'),
 
                     const SizedBox(height: 20),
                     Row(
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'MOBILE NUMBER',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textSecondary,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildTextField(
-                                _mobileController,
-                                'e.g. +91 98765 43210',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1105,6 +1140,30 @@ class _InquiryModalState extends State<InquiryModal> {
                               _buildTextField(
                                 _numberController,
                                 'e.g. 99999 54321',
+                                isRequired: false,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'REPORT CHARGE (₹)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textSecondary,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                _chargeController,
+                                'e.g. 1500',
+                                isNumeric: true,
                               ),
                             ],
                           ),
@@ -1115,29 +1174,6 @@ class _InquiryModalState extends State<InquiryModal> {
                     const SizedBox(height: 20),
                     Row(
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'PRICE (₹)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textSecondary,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildTextField(
-                                _priceController,
-                                'e.g. 45000',
-                                isNumeric: true,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1225,10 +1261,11 @@ class _InquiryModalState extends State<InquiryModal> {
       setState(() => _isSaving = true);
       try {
         final data = {
-          'customer_name': _customerController.text,
           'mobile_number': _mobileController.text,
+          'name': _nameController.text,
+          'city': _cityController.text,
           'selected_number': _numberController.text,
-          'price': _priceController.text,
+          'report_charge': _chargeController.text,
           'status': _selectedStatus,
         };
 
@@ -1290,27 +1327,29 @@ class _InquiryModalState extends State<InquiryModal> {
 
         return const Iterable<Map<String, dynamic>>.empty();
       },
-      displayStringForOption: (Map<String, dynamic> option) => option['name'],
+      displayStringForOption:
+          (Map<String, dynamic> option) => option['mobile'] ?? '',
       onSelected: (Map<String, dynamic> selection) {
         setState(() {
-          _customerController.text = selection['name'];
           _mobileController.text = selection['mobile'] ?? '';
+          _nameController.text = selection['name'] ?? '';
+          _cityController.text = selection['city'] ?? '';
         });
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         // Synchronize our manual controller with Autocomplete's internal controller
-        if (_customerController.text.isNotEmpty && controller.text.isEmpty) {
-          controller.text = _customerController.text;
+        if (_mobileController.text.isNotEmpty && controller.text.isEmpty) {
+          controller.text = _mobileController.text;
         }
 
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
           onFieldSubmitted: (value) => onFieldSubmitted(),
-          onChanged: (value) => _customerController.text = value,
+          onChanged: (value) => _mobileController.text = value,
           validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
           decoration: InputDecoration(
-            hintText: 'Search or enter customer name',
+            hintText: 'Search or enter mobile number',
             filled: true,
             fillColor: Colors.grey[50],
             suffixIcon:
@@ -1359,8 +1398,8 @@ class _InquiryModalState extends State<InquiryModal> {
                 itemBuilder: (BuildContext context, int index) {
                   final Map<String, dynamic> option = options.elementAt(index);
                   return ListTile(
-                    title: Text(option['name']),
-                    subtitle: Text(option['mobile'] ?? 'No phone'),
+                    title: Text(option['mobile'] ?? 'No phone'),
+                    subtitle: Text(option['city'] ?? 'No city'),
                     onTap: () => onSelected(option),
                   );
                 },
@@ -1376,11 +1415,14 @@ class _InquiryModalState extends State<InquiryModal> {
     TextEditingController controller,
     String hint, {
     bool isNumeric = false,
+    bool isRequired = true,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-      validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
+      validator:
+          (v) =>
+              isRequired && (v == null || v.isEmpty) ? 'Field required' : null,
       decoration: InputDecoration(
         hintText: hint,
         filled: true,

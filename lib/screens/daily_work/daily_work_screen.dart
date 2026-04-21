@@ -444,7 +444,7 @@ class _DailyWorkScreenState extends State<DailyWorkScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                entry['contact'],
+                                entry['contact'] ?? 'No Contact',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   color: AppColors.textSecondary,
@@ -506,7 +506,7 @@ class _DailyWorkScreenState extends State<DailyWorkScreen> {
                           child: Padding(
                             padding: const EdgeInsets.only(right: 16),
                             child: Text(
-                              entry['work_done'],
+                              entry['work_done'] ?? 'No work details',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
@@ -523,12 +523,12 @@ class _DailyWorkScreenState extends State<DailyWorkScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildTextWithStyle(
-                                'Problem: ${entry['problem']}',
+                                'Problem: ${entry['problem'] ?? 'None'}',
                                 AppColors.statusCancelled,
                               ),
                               const SizedBox(height: 8),
                               _buildTextWithStyle(
-                                'Solution: ${entry['solution']}',
+                                'Solution: ${entry['solution'] ?? 'None'}',
                                 AppColors.statusAvailable,
                               ),
                             ],
@@ -877,7 +877,7 @@ class _DailyWorkScreenState extends State<DailyWorkScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Are you sure you want to delete the entry for ${item['contact']}?',
+                          'Are you sure you want to delete the entry for ${item['contact'] ?? 'Unknown'}?',
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textPrimary,
@@ -1093,7 +1093,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                       const SizedBox(height: 4),
                       Text(
                         isEditing
-                            ? 'Reference: ${widget.entryData?['contact']}'
+                            ? 'Reference: ${widget.entryData?['contact'] ?? ''}'
                             : 'Enter daily activity details below.',
                         style: const TextStyle(color: AppColors.textSecondary),
                       ),
@@ -1216,7 +1216,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                       ),
                       const SizedBox(height: 24),
                       _buildField(
-                        'Review One',
+                        'First Review',
                         'Enter first review...',
                         _reviewOneController,
                         isMultiline: true,
@@ -1224,7 +1224,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                       ),
                       const SizedBox(height: 24),
                       _buildField(
-                        'Review Two',
+                        'Second Review',
                         'Enter second review...',
                         _reviewTwoController,
                         isMultiline: true,
@@ -1370,7 +1370,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
         Autocomplete<Map<String, dynamic>>(
           initialValue: _contactController.value,
           displayStringForOption:
-              (option) => "${option['name']} (${option['mobile']})",
+              (option) => "${option['mobile'] ?? ''} (${option['city'] ?? ''})",
           optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text.isEmpty) {
               return const Iterable<Map<String, dynamic>>.empty();
@@ -1387,7 +1387,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
           },
           onSelected: (Map<String, dynamic> selection) {
             _contactController.text =
-                "${selection['name']} (${selection['mobile']})";
+                "${selection['mobile'] ?? ''} (${selection['city'] ?? ''})";
             // Auto fill customer added date from selected customer
             if (selection['date'] != null) {
               _customerAddedDateController.text = selection['date'];
@@ -1407,7 +1407,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
               focusNode: focusNode,
               onFieldSubmitted: (value) => onFieldSubmitted(),
               decoration: InputDecoration(
-                hintText: 'Search Name or Mobile',
+                hintText: 'Search Mobile or City',
                 prefixIcon: const Icon(Icons.person_outline, size: 20),
                 filled: true,
                 fillColor: Colors.grey[50],
@@ -1427,7 +1427,6 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                   ),
                 ),
               ),
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
             );
           },
           optionsViewBuilder: (context, onSelected, options) {
@@ -1449,17 +1448,15 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                         leading: CircleAvatar(
                           backgroundColor: AppColors.primary.withOpacity(0.1),
                           child: Text(
-                            option['name'][0],
+                            (option['mobile'] ?? '?')[0],
                             style: const TextStyle(color: AppColors.primary),
                           ),
                         ),
                         title: Text(
-                          option['name'],
+                          option['mobile'] ?? 'No Mobile',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text(
-                          "${option['mobile']} • ${option['city']}",
-                        ),
+                        subtitle: Text(option['city'] ?? 'No City'),
                         onTap: () => onSelected(option),
                       );
                     },
@@ -1479,7 +1476,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
     TextEditingController ctrl, {
     bool isMultiline = false,
     IconData? icon,
-    bool isRequired = true,
+    bool isRequired = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

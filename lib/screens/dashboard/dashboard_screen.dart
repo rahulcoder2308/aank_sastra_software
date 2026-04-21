@@ -559,11 +559,11 @@ class RecentActivityTable extends StatelessWidget {
                 const Divider(),
                 ...activities!.map(
                   (a) => _buildTableRow(
-                    a['id'],
-                    a['customer'],
-                    a['type'],
-                    a['amount'],
-                    a['status'],
+                    a['id']?.toString() ?? 'N/A',
+                    a['customer']?.toString() ?? 'Unknown',
+                    a['type']?.toString() ?? 'Record',
+                    a['amount']?.toString() ?? '₹0',
+                    a['status']?.toString() ?? 'Pending',
                     a['color'] == 'green'
                         ? Colors.green
                         : (a['color'] == 'blue' ? Colors.blue : Colors.grey),

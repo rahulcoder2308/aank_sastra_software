@@ -509,18 +509,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       ),
                     ),
                   ),
-                  Expanded(
-                    flex: 4,
-                    child: Text(
-                      'NAME',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                        color: AppColors.textPrimary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
+
                   Expanded(
                     flex: 2,
                     child: Text(
@@ -601,17 +590,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                               ),
                             ),
                           ),
-                          Expanded(
-                            flex: 4,
-                            child: Text(
-                              customer['name'] ?? '-',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
+
                           Expanded(
                             flex: 2,
                             child: Text(
@@ -647,7 +626,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                if (user?.hasPermission('Customer', 'edit') ?? false)
+                                if (user?.hasPermission('Customer', 'edit') ??
+                                    false)
                                   _buildActionButton(
                                     icon: Icons.edit_outlined,
                                     color: Colors.blue,
@@ -657,9 +637,11 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                           customer: customer,
                                         ),
                                   ),
-                                if (user?.hasPermission('Customer', 'edit') ?? false)
+                                if (user?.hasPermission('Customer', 'edit') ??
+                                    false)
                                   const SizedBox(width: 8),
-                                if (user?.hasPermission('Customer', 'delete') ?? false)
+                                if (user?.hasPermission('Customer', 'delete') ??
+                                    false)
                                   _buildActionButton(
                                     icon: Icons.delete_outline,
                                     color: Colors.red,
@@ -942,7 +924,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Are you sure you want to delete ${customer['name']}?',
+                          'Are you sure you want to delete ${customer['mobile']}?',
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textPrimary,
@@ -988,7 +970,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          '${customer['name']} deleted',
+                                          '${customer['mobile']} deleted',
                                         ),
                                         backgroundColor: Colors.red,
                                       ),
@@ -1034,7 +1016,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   void _showCustomerDialog({dynamic customer}) {
     final isEditing = customer != null;
     final formKey = GlobalKey<FormState>();
-    String name = customer?['name'] ?? '';
     String mobile = customer?['mobile'] ?? '';
     String initialDate =
         customer?['date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -1134,30 +1115,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'FULL NAME',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textSecondary,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            initialValue: name,
-                            decoration: _dialogInputDecoration(
-                              'Enter full name',
-                              Icons.person_outline,
-                            ),
-                            validator:
-                                (v) =>
-                                    v == null || v.isEmpty
-                                        ? 'Please enter name'
-                                        : null,
-                            onChanged: (v) => name = v,
-                          ),
-                          const SizedBox(height: 20),
                           const Text(
                             'MOBILE NUMBER',
                             style: TextStyle(
@@ -1286,7 +1243,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                         String finalCity =
                                             isAddingNewCity ? newCity : city;
                                         final data = {
-                                          'name': name,
                                           'mobile': mobile,
                                           'city': finalCity,
                                           'date': initialDate,
