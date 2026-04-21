@@ -700,6 +700,7 @@ class ApiService {
     int page = 1,
     String? search,
     String? mode,
+    String? type,
     String? startDate,
     String? endDate,
   }) async {
@@ -707,6 +708,7 @@ class ApiService {
       'page': page.toString(),
       if (search != null && search.isNotEmpty) 'search': search,
       if (mode != null && mode != 'All') 'mode': mode,
+      if (type != null && type != 'All') 'payment_type': type,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
     };
@@ -725,6 +727,34 @@ class ApiService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to fetch payments');
+    }
+  }
+
+  static Future<Map<String, dynamic>> exportPayments({
+    String? type,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final queryParams = {
+      if (type != null && type != 'All') 'payment_type': type,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+    };
+
+    final uri = Uri.parse(
+      '$baseUrl/payments/export',
+    ).replace(queryParameters: queryParams);
+    final url = uri.toString();
+    _logRequest("GET", url);
+
+    final response = await http.get(uri, headers: await getHeaders());
+
+    _logResponse("GET", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to export payments');
     }
   }
 
@@ -805,6 +835,129 @@ class ApiService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to fetch dashboard stats');
+    }
+  }
+
+  // --- EXPENSES ---
+  static Future<Map<String, dynamic>> getExpenses({
+    int page = 1,
+    String? search,
+    String? category,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final queryParams = {
+      'page': page.toString(),
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (category != null && category != 'All') 'category': category,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+    };
+
+    final uri = Uri.parse(
+      '$baseUrl/expenses',
+    ).replace(queryParameters: queryParams);
+    final url = uri.toString();
+    _logRequest("GET", url);
+
+    final response = await http.get(uri, headers: await getHeaders());
+
+    _logResponse("GET", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch expenses');
+    }
+  }
+
+  static Future<Map<String, dynamic>> createExpense(
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/expenses';
+    _logRequest("POST", url, body: data);
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("POST", url, response);
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to create expense');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateExpense(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    final url = '$baseUrl/expenses/$id';
+    _logRequest("PUT", url, body: data);
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: await getHeaders(),
+      body: jsonEncode(data),
+    );
+
+    _logResponse("PUT", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to update expense');
+    }
+  }
+
+  static Future<void> deleteExpense(int id) async {
+    final url = '$baseUrl/expenses/$id';
+    _logRequest("DELETE", url);
+
+    final response = await http.delete(
+      Uri.parse(url),
+      headers: await getHeaders(),
+    );
+
+    _logResponse("DELETE", url, response);
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete expense');
+    }
+  }
+
+  static Future<Map<String, dynamic>> exportExpenses({
+    String? category,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final queryParams = {
+      if (category != null && category != 'All') 'category': category,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+    };
+
+    final uri = Uri.parse(
+      '$baseUrl/expenses/export',
+    ).replace(queryParameters: queryParams);
+    final url = uri.toString();
+    _logRequest("GET", url);
+
+    final response = await http.get(uri, headers: await getHeaders());
+
+    _logResponse("GET", url, response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to export expenses');
     }
   }
 }

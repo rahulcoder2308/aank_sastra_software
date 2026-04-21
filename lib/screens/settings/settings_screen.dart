@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/localization/language_provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/api_service.dart';
+import '../../providers/auth_provider.dart';
 import 'staff_permissions_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -95,6 +96,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final isAdmin = user?.role == 'Admin';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32.0),
       child: Column(
@@ -105,10 +109,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // 1. Language Settings
           _buildLanguageSection(),
-          const SizedBox(height: 24),
 
-          // 2. User Management
-          _buildUserManagementSection(),
+          if (isAdmin) ...[
+            const SizedBox(height: 24),
+            // 2. User Management
+            _buildUserManagementSection(),
+          ],
         ],
       ),
     );

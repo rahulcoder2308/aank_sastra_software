@@ -10,6 +10,7 @@ import 'payments/payment_list_screen.dart';
 import 'numerology/numerology_analysis_screen.dart';
 import 'daily_work/daily_work_screen.dart';
 import 'settings/settings_screen.dart';
+import 'expenses/expense_list_screen.dart';
 import 'profile/profile_screen.dart';
 import '../providers/auth_provider.dart';
 import 'package:window_manager/window_manager.dart';
@@ -104,6 +105,8 @@ class _MainScreenState extends State<MainScreen> {
         return const DailyWorkScreen();
       case 8:
         return const SettingsScreen();
+      case 9:
+        return const ExpenseListScreen();
       default:
         return const DashboardContent();
     }
@@ -223,12 +226,19 @@ class Sidebar extends StatelessWidget {
                     Icons.work_outline,
                     lp.translate('daily_work'),
                   ),
-                if (user?.role == 'Admin')
+                if (user?.role == 'Admin' || user?.role == 'Staff')
                   _buildMenuItem(
                     context,
                     8,
                     Icons.settings_outlined,
                     lp.translate('settings'),
+                  ),
+                if (user?.role == 'Admin')
+                  _buildMenuItem(
+                    context,
+                    9,
+                    Icons.account_balance_wallet_outlined,
+                    lp.translate('expense_tracker'),
                   ),
                 const SizedBox(height: 12),
                 const Divider(indent: 24, endIndent: 24, color: Colors.black12),

@@ -5,6 +5,11 @@ import '../../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class PaymentListScreen extends StatefulWidget {
   const PaymentListScreen({super.key});
@@ -16,6 +21,7 @@ class PaymentListScreen extends StatefulWidget {
 class _PaymentListScreenState extends State<PaymentListScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedMode = 'All';
+  String _selectedType = 'All';
   DateTimeRange? _selectedDateRange;
   bool _isLoading = false;
   List<dynamic> _payments = [];
@@ -56,6 +62,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
         page: _currentPage,
         search: _searchController.text,
         mode: _selectedMode,
+        type: _selectedType,
         startDate:
             _selectedDateRange?.start != null
                 ? DateFormat('Y-MM-dd').format(_selectedDateRange!.start)
@@ -143,22 +150,41 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                   ],
                 ),
                 if (!isNarrow && canCreate)
-                  ElevatedButton.icon(
-                    onPressed: () => _showPaymentDialog(),
-                    icon: const Icon(Icons.add, size: 20),
-                    label: const Text('Add Payment'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _exportPdf,
+                        icon: const Icon(Icons.picture_as_pdf, size: 20),
+                        label: const Text('Export PDF'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => _showPaymentDialog(),
+                        icon: const Icon(Icons.add, size: 20),
+                        label: const Text('Add Payment'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
                       ),
-                      elevation: 0,
-                    ),
+                    ],
                   ),
               ],
             ),
@@ -166,19 +192,39 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showPaymentDialog(),
-                  icon: const Icon(Icons.add, size: 20),
-                  label: const Text('Add Payment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _exportPdf,
+                        icon: const Icon(Icons.picture_as_pdf, size: 20),
+                        label: const Text('Export'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                     ),
-                    elevation: 0,
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showPaymentDialog(),
+                        icon: const Icon(Icons.add, size: 20),
+                        label: const Text('Add Payment'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -218,6 +264,8 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                           const SizedBox(width: 8),
                           Expanded(child: _buildModeFilter()),
                           const SizedBox(width: 8),
+                          Expanded(child: _buildTypeFilter()),
+                          const SizedBox(width: 8),
                           _buildResetButton(),
                         ],
                       ),
@@ -230,6 +278,8 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                       Expanded(flex: 1, child: _buildDateRangeSelector()),
                       const SizedBox(width: 16),
                       Expanded(flex: 1, child: _buildModeFilter()),
+                      const SizedBox(width: 16),
+                      Expanded(flex: 1, child: _buildTypeFilter()),
                       const SizedBox(width: 16),
                       _buildResetButton(),
                     ],
@@ -364,11 +414,45 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
     );
   }
 
+  Widget _buildTypeFilter() {
+    return DropdownButtonFormField<String>(
+      value: _selectedType,
+      decoration: InputDecoration(
+        hintText: 'Type',
+        filled: true,
+        fillColor: Colors.grey[50],
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!),
+        ),
+      ),
+      items:
+          [
+            'All',
+            'New Number',
+            'Report Payment',
+          ].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+      onChanged: (v) {
+        setState(() {
+          _selectedType = v!;
+          _currentPage = 1;
+        });
+        _fetchPayments();
+      },
+    );
+  }
+
   Widget _buildResetButton() {
     return IconButton(
       onPressed: () {
         setState(() {
           _selectedMode = 'All';
+          _selectedType = 'All';
           _selectedDateRange = null;
           _searchController.clear();
           _currentPage = 1;
@@ -412,6 +496,17 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                     flex: 3,
                     child: Text(
                       'CUSTOMER',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'TYPE',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -526,6 +621,33 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    p['payment_type'] == 'New Number'
+                                        ? Colors.purple.withOpacity(0.1)
+                                        : Colors.blue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                p['payment_type'] ?? 'Report',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      p['payment_type'] == 'New Number'
+                                          ? Colors.purple[700]
+                                          : Colors.blue[700],
+                                ),
                               ),
                             ),
                           ),
@@ -815,6 +937,130 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
     );
   }
 
+  Future<void> _exportPdf() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await ApiService.exportPayments(
+        type: _selectedType,
+        startDate:
+            _selectedDateRange?.start != null
+                ? DateFormat('Y-MM-dd').format(_selectedDateRange!.start)
+                : null,
+        endDate:
+            _selectedDateRange?.end != null
+                ? DateFormat('Y-MM-dd').format(_selectedDateRange!.end)
+                : null,
+      );
+
+      if (response['success']) {
+        final payments = response['data'];
+        final pdf = pw.Document();
+
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(32),
+            build: (pw.Context context) {
+              return [
+                pw.Header(
+                  level: 0,
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'Payment Report',
+                            style: pw.TextStyle(
+                              fontSize: 24,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.Text(
+                            'Exported on ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+                            style: const pw.TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            'Type: $_selectedType',
+                            style: const pw.TextStyle(fontSize: 12),
+                          ),
+                          if (_selectedDateRange != null)
+                            pw.Text(
+                              'Range: ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start)} to ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end)}',
+                              style: const pw.TextStyle(fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+                pw.TableHelper.fromTextArray(
+                  headers: [
+                    'Date',
+                    'Customer',
+                    'Type',
+                    'Total',
+                    'Paid',
+                    'Mode',
+                  ],
+                  data:
+                      payments.map<List<dynamic>>((p) {
+                        return [
+                          p['payment_date'],
+                          p['customer_name'],
+                          p['payment_type'] ?? 'Report',
+                          'INR ${p['total_amount']}',
+                          'INR ${p['paid_amount']}',
+                          p['payment_mode'],
+                        ];
+                      }).toList(),
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  headerDecoration: const pw.BoxDecoration(
+                    color: PdfColors.grey300,
+                  ),
+                  cellHeight: 30,
+                  cellAlignments: {
+                    0: pw.Alignment.centerLeft,
+                    1: pw.Alignment.centerLeft,
+                    2: pw.Alignment.centerLeft,
+                    3: pw.Alignment.centerRight,
+                    4: pw.Alignment.centerRight,
+                    5: pw.Alignment.center,
+                  },
+                ),
+              ];
+            },
+          ),
+        );
+
+        final bytes = await pdf.save();
+        await Printing.sharePdf(
+          bytes: bytes,
+          filename:
+              'Payment_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _showDeleteConfirmation(Map<String, dynamic> item) {
     showDialog(
       context: context,
@@ -1012,6 +1258,7 @@ class _PaymentModalState extends State<PaymentModal> {
   late TextEditingController _totalController;
   late TextEditingController _paidController;
   late String _selectedMode;
+  late String _selectedType;
   double _remaining = 0;
   bool _isSaving = false;
   int? _selectedCustomerId;
@@ -1029,6 +1276,7 @@ class _PaymentModalState extends State<PaymentModal> {
       text: (widget.paymentData?['paid_amount'] ?? 0).toString(),
     );
     _selectedMode = widget.paymentData?['payment_mode'] ?? 'Cash';
+    _selectedType = widget.paymentData?['payment_type'] ?? 'Report Payment';
     _selectedCustomerId = widget.paymentData?['customer_id'];
     _updateRemaining();
   }
@@ -1144,6 +1392,48 @@ class _PaymentModalState extends State<PaymentModal> {
                     ),
                     const SizedBox(height: 8),
                     _buildCustomerAutocomplete(),
+
+                    const SizedBox(height: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'PAYMENT FOR',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: _selectedType,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[200]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[200]!),
+                            ),
+                          ),
+                          items:
+                              ['New Number', 'Report Payment']
+                                  .map(
+                                    (m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text(m),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (v) => setState(() => _selectedType = v!),
+                        ),
+                      ],
+                    ),
 
                     const SizedBox(height: 20),
                     Row(
@@ -1334,6 +1624,7 @@ class _PaymentModalState extends State<PaymentModal> {
         final data = {
           'customer_name': _customerController.text,
           'customer_id': _selectedCustomerId,
+          'payment_type': _selectedType,
           'total_amount': _totalController.text,
           'paid_amount': _paidController.text,
           'payment_mode': _selectedMode,

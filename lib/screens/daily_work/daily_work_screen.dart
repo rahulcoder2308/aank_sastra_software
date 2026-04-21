@@ -383,6 +383,18 @@ class _DailyWorkScreenState extends State<DailyWorkScreen> {
                       ),
                     ),
                   ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'REVIEWS',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
                   SizedBox(
                     width: 100,
                     child: Text(
@@ -439,6 +451,52 @@ class _DailyWorkScreenState extends State<DailyWorkScreen> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
+                              if (entry['customer_added_date'] != null &&
+                                  entry['customer_added_date']
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.person_add_outlined,
+                                      size: 12,
+                                      color: Colors.blue,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Added: ${_formatDate(entry['customer_added_date'])}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              if (entry['inquiry_date'] != null &&
+                                  entry['inquiry_date']
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.help_outline,
+                                      size: 12,
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Inquiry: ${_formatDate(entry['inquiry_date'])}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -473,6 +531,45 @@ class _DailyWorkScreenState extends State<DailyWorkScreen> {
                                 'Solution: ${entry['solution']}',
                                 AppColors.statusAvailable,
                               ),
+                            ],
+                          ),
+                        ),
+                        // Reviews
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (entry['review_one'] != null &&
+                                  entry['review_one']
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                _buildTextWithStyle(
+                                  'Review 1: ${entry['review_one']}',
+                                  Colors.purple,
+                                ),
+                                const SizedBox(height: 8),
+                              ],
+                              if (entry['review_two'] != null &&
+                                  entry['review_two']
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                _buildTextWithStyle(
+                                  'Review 2: ${entry['review_two']}',
+                                  Colors.teal,
+                                ),
+                              ] else if ((entry['review_one'] == null ||
+                                      entry['review_one'].toString().isEmpty) &&
+                                  (entry['review_two'] == null ||
+                                      entry['review_two'].toString().isEmpty))
+                                const Text(
+                                  'No reviews yet',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -899,6 +996,10 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
   late TextEditingController _workController;
   late TextEditingController _problemController;
   late TextEditingController _solutionController;
+  late TextEditingController _customerAddedDateController;
+  late TextEditingController _inquiryDateController;
+  late TextEditingController _reviewOneController;
+  late TextEditingController _reviewTwoController;
 
   @override
   void initState() {
@@ -920,6 +1021,18 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
     _solutionController = TextEditingController(
       text: widget.entryData?['solution'] ?? '',
     );
+    _customerAddedDateController = TextEditingController(
+      text: widget.entryData?['customer_added_date'] ?? '',
+    );
+    _inquiryDateController = TextEditingController(
+      text: widget.entryData?['inquiry_date'] ?? '',
+    );
+    _reviewOneController = TextEditingController(
+      text: widget.entryData?['review_one'] ?? '',
+    );
+    _reviewTwoController = TextEditingController(
+      text: widget.entryData?['review_two'] ?? '',
+    );
   }
 
   @override
@@ -929,6 +1042,10 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
     _workController.dispose();
     _problemController.dispose();
     _solutionController.dispose();
+    _customerAddedDateController.dispose();
+    _inquiryDateController.dispose();
+    _reviewOneController.dispose();
+    _reviewTwoController.dispose();
     super.dispose();
   }
 
@@ -1054,6 +1171,65 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                         _solutionController,
                         isMultiline: true,
                       ),
+                      const SizedBox(height: 24),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth < 500) {
+                            return Column(
+                              children: [
+                                _buildDateField(
+                                  'Customer Added Date',
+                                  'Auto-filled from customer',
+                                  _customerAddedDateController,
+                                  isReadOnly: true,
+                                ),
+                                const SizedBox(height: 24),
+                                _buildDateField(
+                                  'Inquiry Date',
+                                  'Select Date',
+                                  _inquiryDateController,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _buildDateField(
+                                  'Customer Added Date',
+                                  'Auto-filled from customer',
+                                  _customerAddedDateController,
+                                  isReadOnly: true,
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: _buildDateField(
+                                  'Inquiry Date',
+                                  'Select Date',
+                                  _inquiryDateController,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      _buildField(
+                        'Review One',
+                        'Enter first review...',
+                        _reviewOneController,
+                        isMultiline: true,
+                        isRequired: false,
+                      ),
+                      const SizedBox(height: 24),
+                      _buildField(
+                        'Review Two',
+                        'Enter second review...',
+                        _reviewTwoController,
+                        isMultiline: true,
+                        isRequired: false,
+                      ),
                       const SizedBox(height: 48),
                       // Actions
                       Row(
@@ -1084,8 +1260,32 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                                     'date': _dateController.text,
                                     'contact': _contactController.text,
                                     'work_done': _workController.text,
-                                    'problem': _problemController.text,
-                                    'solution': _solutionController.text,
+                                    'problem':
+                                        _problemController.text.isEmpty
+                                            ? null
+                                            : _problemController.text,
+                                    'solution':
+                                        _solutionController.text.isEmpty
+                                            ? null
+                                            : _solutionController.text,
+                                    'customer_added_date':
+                                        _customerAddedDateController
+                                                .text
+                                                .isEmpty
+                                            ? null
+                                            : _customerAddedDateController.text,
+                                    'inquiry_date':
+                                        _inquiryDateController.text.isEmpty
+                                            ? null
+                                            : _inquiryDateController.text,
+                                    'review_one':
+                                        _reviewOneController.text.isEmpty
+                                            ? null
+                                            : _reviewOneController.text,
+                                    'review_two':
+                                        _reviewTwoController.text.isEmpty
+                                            ? null
+                                            : _reviewTwoController.text,
                                   };
 
                                   if (widget.entryData != null) {
@@ -1188,6 +1388,10 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
           onSelected: (Map<String, dynamic> selection) {
             _contactController.text =
                 "${selection['name']} (${selection['mobile']})";
+            // Auto fill customer added date from selected customer
+            if (selection['date'] != null) {
+              _customerAddedDateController.text = selection['date'];
+            }
           },
           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
             // Synchronize controllers
@@ -1275,6 +1479,7 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
     TextEditingController ctrl, {
     bool isMultiline = false,
     IconData? icon,
+    bool isRequired = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1287,7 +1492,11 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
         TextFormField(
           controller: ctrl,
           maxLines: isMultiline ? 3 : 1,
-          validator: (v) => v == null || v.isEmpty ? 'Field required' : null,
+          validator:
+              (v) =>
+                  isRequired && (v == null || v.isEmpty)
+                      ? 'Field required'
+                      : null,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon:
@@ -1296,6 +1505,74 @@ class _WorkEntryModalState extends State<WorkEntryModal> {
                     : null,
             filled: true,
             fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[100]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField(
+    String label,
+    String hint,
+    TextEditingController ctrl, {
+    bool isReadOnly = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 10),
+        TextFormField(
+          controller: ctrl,
+          readOnly: true,
+          onTap:
+              isReadOnly
+                  ? null
+                  : () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      ctrl.text = DateFormat('yyyy-MM-dd').format(picked);
+                    }
+                  },
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: const Icon(
+              Icons.calendar_today,
+              size: 20,
+              color: AppColors.primary,
+            ),
+            suffixIcon:
+                isReadOnly
+                    ? null
+                    : IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () => ctrl.clear(),
+                    ),
+            filled: true,
+            fillColor: isReadOnly ? Colors.grey[100] : Colors.grey[50],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

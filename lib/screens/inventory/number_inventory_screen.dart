@@ -389,7 +389,7 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                   Expanded(
                     flex: 2,
                     child: Text(
-                      'PRICE',
+                      'SYNCER / SELF',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -469,13 +469,27 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                           ),
                           Expanded(
                             flex: 2,
-                            child: Text(
-                              '₹${item['price']}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'S: ₹${item['syncer_price'] ?? 0}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                Text(
+                                  'P: ₹${item['self_price'] ?? 0}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.teal,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           Expanded(
@@ -497,16 +511,20 @@ class _NumberInventoryScreenState extends State<NumberInventoryScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                if (user?.hasPermission('Numbers', 'edit') ?? false)
+                                if (user?.hasPermission('Numbers', 'edit') ??
+                                    false)
                                   _buildActionButton(
                                     icon: Icons.edit_outlined,
                                     color: Colors.blue,
                                     tooltip: 'Edit',
-                                    onTap: () => _showNumberDialog(number: item),
+                                    onTap:
+                                        () => _showNumberDialog(number: item),
                                   ),
-                                if (user?.hasPermission('Numbers', 'edit') ?? false)
+                                if (user?.hasPermission('Numbers', 'edit') ??
+                                    false)
                                   const SizedBox(width: 8),
-                                if (user?.hasPermission('Numbers', 'delete') ?? false)
+                                if (user?.hasPermission('Numbers', 'delete') ??
+                                    false)
                                   _buildActionButton(
                                     icon: Icons.delete_outline,
                                     color: AppColors.statusSold,
@@ -952,7 +970,8 @@ class _NumberModalState extends State<NumberModal> {
   late String _selectedType;
   late String _selectedStatus;
   late TextEditingController _numberController;
-  late TextEditingController _priceController;
+  late TextEditingController _syncerPriceController;
+  late TextEditingController _selfPriceController;
   bool _isSaving = false;
 
   @override
@@ -963,15 +982,19 @@ class _NumberModalState extends State<NumberModal> {
     _numberController = TextEditingController(
       text: widget.numberData?['number'] ?? '',
     );
-    _priceController = TextEditingController(
-      text: widget.numberData?['price']?.toString() ?? '',
+    _syncerPriceController = TextEditingController(
+      text: widget.numberData?['syncer_price']?.toString() ?? '',
+    );
+    _selfPriceController = TextEditingController(
+      text: widget.numberData?['self_price']?.toString() ?? '',
     );
   }
 
   @override
   void dispose() {
     _numberController.dispose();
-    _priceController.dispose();
+    _syncerPriceController.dispose();
+    _selfPriceController.dispose();
     super.dispose();
   }
 
@@ -1072,10 +1095,10 @@ class _NumberModalState extends State<NumberModal> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildLabel('PRICE (₹)'),
+                              _buildLabel('SYNCER PRICE (₹)'),
                               const SizedBox(height: 8),
                               _buildTextField(
-                                _priceController,
+                                _syncerPriceController,
                                 'e.g. 15000',
                                 isNumeric: true,
                               ),
@@ -1087,9 +1110,13 @@ class _NumberModalState extends State<NumberModal> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildLabel('CATEGORY'),
+                              _buildLabel('SELF PRICE (₹)'),
                               const SizedBox(height: 8),
-                              _buildTypeDropdown(),
+                              _buildTextField(
+                                _selfPriceController,
+                                'e.g. 18000',
+                                isNumeric: true,
+                              ),
                             ],
                           ),
                         ),
@@ -1103,16 +1130,23 @@ class _NumberModalState extends State<NumberModal> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              _buildLabel('CATEGORY'),
+                              const SizedBox(height: 8),
+                              _buildTypeDropdown(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               _buildLabel('STATUS'),
                               const SizedBox(height: 8),
                               _buildStatusDropdown(),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          child: SizedBox(),
-                        ), // Placeholder for layout
                       ],
                     ),
 
@@ -1183,7 +1217,8 @@ class _NumberModalState extends State<NumberModal> {
       try {
         final data = {
           'number': _numberController.text,
-          'price': _priceController.text,
+          'syncer_price': _syncerPriceController.text,
+          'self_price': _selfPriceController.text,
           'category': _selectedType,
           'status': _selectedStatus,
         };
