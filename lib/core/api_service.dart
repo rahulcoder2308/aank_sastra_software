@@ -42,11 +42,36 @@ class ApiService {
   }
 
   static String _decodeBody(http.Response response) {
-    String body = utf8.decode(response.bodyBytes);
-    // Remove BOM if present (common issue on some Windows environments)
+    // Some Windows environments might return bytes that need robust decoding
+    String body = utf8.decode(response.bodyBytes).trim();
+
+    // Remove BOM if present
     if (body.startsWith('\uFEFF')) {
-      body = body.substring(1);
+      body = body.substring(1).trim();
     }
+
+    // HTML Detection (often happens with proxies, firewalls, or server crashes)
+    if (body.startsWith('<')) {
+      log("⚠️ SERVER RETURNED HTML: ${body.length > 100 ? body.substring(0, 100) : body}");
+      throw Exception('Server returned HTML instead of JSON. Please check your internet connection or server status.');
+    }
+
+    // Aggressive JSON Finding: skip any junk before the first '{' or '['
+    int firstBrace = body.indexOf('{');
+    int firstBracket = body.indexOf('[');
+    int startIndex = -1;
+
+    if (firstBrace != -1 && (firstBracket == -1 || firstBrace < firstBracket)) {
+      startIndex = firstBrace;
+    } else if (firstBracket != -1) {
+      startIndex = firstBracket;
+    }
+
+    if (startIndex > 0) {
+      log("⚠️ JUNK DETECTED BEFORE JSON (Skipping ${startIndex} chars): ${body.substring(0, startIndex)}");
+      body = body.substring(startIndex);
+    }
+
     return body;
   }
 
@@ -65,6 +90,7 @@ class ApiService {
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
+              'User-Agent': 'AankSastraApp/1.0',
             },
             body: jsonEncode(payload),
           )
@@ -93,6 +119,7 @@ class ApiService {
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'User-Agent': 'AankSastraApp/1.0',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
