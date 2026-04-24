@@ -41,6 +41,15 @@ class ApiService {
     }
   }
 
+  static String _decodeBody(http.Response response) {
+    String body = utf8.decode(response.bodyBytes);
+    // Remove BOM if present (common issue on some Windows environments)
+    if (body.startsWith('\uFEFF')) {
+      body = body.substring(1);
+    }
+    return body;
+  }
+
   static Future<Map<String, dynamic>> login(
     String email,
     String password,
@@ -63,7 +72,7 @@ class ApiService {
 
       _logResponse("POST", url, response);
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
 
       if (response.statusCode == 200) {
         await saveToken(data['access_token']);
@@ -100,7 +109,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_data', jsonEncode(data));
       return data;
@@ -131,7 +140,7 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update password');
     }
   }
@@ -150,9 +159,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to analyze mobile number');
     }
   }
@@ -171,9 +180,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to analyze name');
     }
   }
@@ -195,9 +204,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(
         data['message'] ?? 'Failed to analyze driver-conductor relationship',
       );
@@ -217,7 +226,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch users');
     }
@@ -238,9 +247,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 201) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to create user');
     }
   }
@@ -261,9 +270,9 @@ class ApiService {
     _logResponse("PUT", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update user');
     }
   }
@@ -280,7 +289,7 @@ class ApiService {
     _logResponse("DELETE", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to delete user');
     }
   }
@@ -302,9 +311,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update permissions');
     }
   }
@@ -332,7 +341,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch daily work');
     }
@@ -353,9 +362,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 201) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to create work entry');
     }
   }
@@ -376,9 +385,9 @@ class ApiService {
     _logResponse("PUT", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update work entry');
     }
   }
@@ -395,7 +404,7 @@ class ApiService {
     _logResponse("DELETE", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to delete work entry');
     }
   }
@@ -427,7 +436,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch customers');
     }
@@ -445,7 +454,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      List<dynamic> data = jsonDecode(response.body);
+      List<dynamic> data = jsonDecode(_decodeBody(response));
       return data.map((e) => e.toString()).toList();
     } else {
       throw Exception('Failed to fetch cities');
@@ -467,9 +476,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 201) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to create customer');
     }
   }
@@ -490,9 +499,9 @@ class ApiService {
     _logResponse("PUT", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update customer');
     }
   }
@@ -509,7 +518,7 @@ class ApiService {
     _logResponse("DELETE", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to delete customer');
     }
   }
@@ -537,7 +546,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch inquiries');
     }
@@ -558,9 +567,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 201) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to create inquiry');
     }
   }
@@ -581,9 +590,9 @@ class ApiService {
     _logResponse("PUT", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update inquiry');
     }
   }
@@ -600,7 +609,7 @@ class ApiService {
     _logResponse("DELETE", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to delete inquiry');
     }
   }
@@ -630,7 +639,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch inventory');
     }
@@ -651,9 +660,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 211 || response.statusCode == 201) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to create inventory item');
     }
   }
@@ -674,9 +683,9 @@ class ApiService {
     _logResponse("PUT", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update inventory item');
     }
   }
@@ -693,7 +702,7 @@ class ApiService {
     _logResponse("DELETE", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to delete inventory item');
     }
   }
@@ -727,7 +736,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch payments');
     }
@@ -755,7 +764,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to export payments');
     }
@@ -776,9 +785,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 211 || response.statusCode == 201) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to create payment');
     }
   }
@@ -799,9 +808,9 @@ class ApiService {
     _logResponse("PUT", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update payment');
     }
   }
@@ -818,7 +827,7 @@ class ApiService {
     _logResponse("DELETE", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to delete payment');
     }
   }
@@ -835,7 +844,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch dashboard stats');
     }
@@ -868,7 +877,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to fetch expenses');
     }
@@ -889,9 +898,9 @@ class ApiService {
     _logResponse("POST", url, response);
 
     if (response.statusCode == 201 || response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to create expense');
     }
   }
@@ -912,9 +921,9 @@ class ApiService {
     _logResponse("PUT", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to update expense');
     }
   }
@@ -931,7 +940,7 @@ class ApiService {
     _logResponse("DELETE", url, response);
 
     if (response.statusCode != 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(_decodeBody(response));
       throw Exception(data['message'] ?? 'Failed to delete expense');
     }
   }
@@ -958,7 +967,7 @@ class ApiService {
     _logResponse("GET", url, response);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return jsonDecode(_decodeBody(response));
     } else {
       throw Exception('Failed to export expenses');
     }
