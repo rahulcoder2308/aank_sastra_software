@@ -53,7 +53,10 @@ class ApiService {
       final response = await http
           .post(
             Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 10));
