@@ -191,13 +191,13 @@ class Sidebar extends StatelessWidget {
                     Icons.people_outline,
                     lp.translate('customers'),
                   ),
-                if (user?.hasPermission('Inquiry', 'view') ?? false)
-                  _buildMenuItem(
-                    context,
-                    2,
-                    Icons.help_outline,
-                    lp.translate('inquiry'),
-                  ),
+                // if (user?.hasPermission('Inquiry', 'view') ?? false)
+                //   _buildMenuItem(
+                //     context,
+                //     2,
+                //     Icons.help_outline,
+                //     lp.translate('inquiry'),
+                //   ),
                 if (user?.hasPermission('Numbers', 'view') ?? false)
                   _buildMenuItem(
                     context,

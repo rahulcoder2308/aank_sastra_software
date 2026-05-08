@@ -52,8 +52,12 @@ class ApiService {
 
     // HTML Detection (often happens with proxies, firewalls, or server crashes)
     if (body.startsWith('<')) {
-      log("⚠️ SERVER RETURNED HTML: ${body.length > 100 ? body.substring(0, 100) : body}");
-      throw Exception('Server returned HTML instead of JSON. Please check your internet connection or server status.');
+      log(
+        "⚠️ SERVER RETURNED HTML: ${body.length > 100 ? body.substring(0, 100) : body}",
+      );
+      throw Exception(
+        'Server returned HTML instead of JSON. Please check your internet connection or server status.',
+      );
     }
 
     // Aggressive JSON Finding: skip any junk before the first '{' or '['
@@ -68,7 +72,9 @@ class ApiService {
     }
 
     if (startIndex > 0) {
-      log("⚠️ JUNK DETECTED BEFORE JSON (Skipping ${startIndex} chars): ${body.substring(0, startIndex)}");
+      log(
+        "⚠️ JUNK DETECTED BEFORE JSON (Skipping ${startIndex} chars): ${body.substring(0, startIndex)}",
+      );
       body = body.substring(startIndex);
     }
 

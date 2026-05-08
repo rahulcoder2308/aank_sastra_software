@@ -8,7 +8,7 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isAuthenticated = false;
   bool _isLoading = false;
-
+  var responseprint = "";
   User? get user => _user;
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
@@ -44,8 +44,10 @@ class AuthProvider extends ChangeNotifier {
     try {
       print("AuthProvider: Attempting login for $email");
       final response = await ApiService.login(email, password);
+      responseprint = response.toString();
       _user = User.fromJson(response['user']);
       _isAuthenticated = true;
+
       print(
         "AuthProvider: Login successful, user: ${_user?.name}, isAuthenticated: $_isAuthenticated",
       );

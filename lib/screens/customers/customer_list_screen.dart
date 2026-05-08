@@ -21,6 +21,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   List<dynamic> _customers = [];
   List<String> _cities = [];
+  List<dynamic> _users = [];
+  Map<int, String> _userMap = {};
 
   int _currentPage = 1;
   int _lastPage = 1;
@@ -35,7 +37,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    await Future.wait([_fetchCities(), _fetchCustomers()]);
+    await Future.wait([_fetchCities(), _fetchCustomers(), _fetchUsers()]);
   }
 
   Future<void> _fetchCities() async {
@@ -46,6 +48,18 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       });
     } catch (e) {
       debugPrint('Error fetching cities: $e');
+    }
+  }
+
+  Future<void> _fetchUsers() async {
+    try {
+      final users = await ApiService.getUsers();
+      setState(() {
+        _users = users;
+        _userMap = {for (var u in users) u['id'] as int: u['name'] as String};
+      });
+    } catch (e) {
+      debugPrint('Error fetching users: $e');
     }
   }
 
@@ -537,6 +551,18 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   Expanded(
                     flex: 2,
                     child: Text(
+                      'ADDED BY',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.textPrimary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
                       'DATE',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -605,6 +631,22 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             flex: 3,
                             child: Text(
                               customer['mobile'] ?? '-',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              (customer['added_by'] is Map)
+                                  ? (customer['added_by']['name'] ?? '-')
+                                  : (_userMap[int.tryParse(
+                                        customer['added_by']?.toString() ?? '',
+                                      )] ??
+                                      customer['added_by']?.toString() ??
+                                      '-'),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -1019,6 +1061,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     String mobile = customer?['mobile'] ?? '';
     String initialDate =
         customer?['date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.user?.id;
+
+    dynamic selectedAddedBy =
+        (customer?['added_by'] is Map)
+            ? (int.tryParse(customer?['added_by']['id']?.toString() ?? ''))
+            : (int.tryParse(customer?['added_by']?.toString() ?? '') ??
+                currentUserId);
 
     // Ensure initial city is valid
     String city =
@@ -1216,6 +1266,34 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                               );
                             },
                           ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'ADDED BY',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<dynamic>(
+                            value: selectedAddedBy,
+                            decoration: _dialogInputDecoration(
+                              'Select staff member',
+                              Icons.person_outline,
+                            ),
+                            items:
+                                _users.map((user) {
+                                  return DropdownMenuItem(
+                                    value: user['id'],
+                                    child: Text(user['name'] ?? 'Unknown'),
+                                  );
+                                }).toList(),
+                            onChanged: (v) => selectedAddedBy = v,
+                            validator:
+                                (v) => v == null ? 'Please select staff' : null,
+                          ),
                           const SizedBox(height: 32),
                           Row(
                             children: [
@@ -1246,11 +1324,16 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                           'mobile': mobile,
                                           'city': finalCity,
                                           'date': initialDate,
+                                          'added_by': selectedAddedBy,
                                         };
 
                                         if (isEditing) {
                                           await ApiService.updateCustomer(
-                                            customer['id'] as int,
+                                            int.tryParse(
+                                                  customer['id']?.toString() ??
+                                                      '',
+                                                ) ??
+                                                0,
                                             data,
                                           );
                                         } else {
