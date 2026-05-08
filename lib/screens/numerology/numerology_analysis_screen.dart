@@ -538,6 +538,66 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
         indicImagesList.add({'hi': hiImg, 'gu': guImg});
       }
 
+      // Pre-generate images for Lo Shu Planes section
+      final List<Map<String, dynamic>> planes = [
+        {
+          'numbers': '492',
+          'en': 'Mental Plane',
+          'hi': 'मेंटल प्लेन',
+          'gu': 'માનસિક સ્તર',
+        },
+        {
+          'numbers': '357',
+          'en': 'Emotional Plane',
+          'hi': 'इમોશનલ प्लेन',
+          'gu': 'ભાવનાત્મક સ્તર',
+        },
+        {
+          'numbers': '816',
+          'en': 'Practical Plane',
+          'hi': 'प्रैक्टिकल प्लेન',
+          'gu': 'વ્યવહારિક સ્તર',
+        },
+        {
+          'numbers': '438',
+          'en': 'Thought Plane',
+          'hi': 'थॉट प्लेन',
+          'gu': 'વિચાર સ્તર',
+        },
+        {
+          'numbers': '951',
+          'en': 'Will Plane',
+          'hi': 'વિલ प्लेन',
+          'gu': 'ઈચ્છા સ્તર',
+        },
+        {
+          'numbers': '276',
+          'en': 'Action Plane',
+          'hi': 'एक्शन प्लेन',
+          'gu': 'ક્રિયા સ્તર',
+        },
+        {
+          'numbers': '456',
+          'en': 'Golden Plane',
+          'hi': 'ગોલ્ડન प्लेન',
+          'gu': 'સુવર્ણ સ્તર',
+        },
+        {'numbers': '258', 'en': 'Rajyog', 'hi': 'રાજયોગ', 'gu': 'રાજયોગ'},
+      ];
+
+      final List<Map<String, Uint8List>> planeImagesList = [];
+      for (final plane in planes) {
+        final hiImg = await _captureTextAsImage(
+          plane['hi']!,
+          color: const Color(0xFF008000),
+        );
+        final guImg = await _captureTextAsImage(
+          plane['gu']!,
+          color: const Color(0xFF008000),
+        );
+        planeImagesList.add({'hi': hiImg, 'gu': guImg});
+      }
+
       pdf.addPage(
         pw.MultiPage(
           pageTheme: pw.PageTheme(
@@ -807,6 +867,77 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                     ),
                   );
                 }).toList(),
+
+                // Lo Shu Grid All Planes Section
+                // pw.SizedBox(height: 30),
+                // pw.Container(
+                //   width: double.infinity,
+                //   padding: const pw.EdgeInsets.symmetric(vertical: 10),
+                //   decoration: const pw.BoxDecoration(color: PdfColors.green800),
+                //   child: pw.Center(
+                //     child: pw.Text(
+                //       'LO SHU GRID ALL PLANES',
+                //       style: pw.TextStyle(
+                //         font: boldFont,
+                //         color: PdfColors.white,
+                //         fontSize: 18,
+                //       ),
+                //     ),
+                //   ),
+                // ),
+                // pw.SizedBox(height: 15),
+                // ...planes.asMap().entries.map((entry) {
+                //   final index = entry.key;
+                //   final plane = entry.value;
+                //   return pw.Padding(
+                //     padding: const pw.EdgeInsets.symmetric(vertical: 8),
+                //     child: pw.Row(
+                //       children: [
+                //         pw.SizedBox(
+                //           width: 45,
+                //           child: pw.Text(
+                //             plane['numbers']!,
+                //             style: pw.TextStyle(
+                //               font: boldFont,
+                //               fontSize: 13,
+                //               color: PdfColors.green800,
+                //             ),
+                //           ),
+                //         ),
+                //         pw.Text(
+                //           ' - ',
+                //           style: pw.TextStyle(
+                //             font: boldFont,
+                //             fontSize: 13,
+                //             color: PdfColors.green800,
+                //           ),
+                //         ),
+                //         pw.Expanded(
+                //           child: pw.Text(
+                //             plane['en']!,
+                //             style: pw.TextStyle(
+                //               font: boldFont,
+                //               fontSize: 13,
+                //               color: PdfColors.green800,
+                //             ),
+                //           ),
+                //         ),
+                //         pw.Expanded(
+                //           child: pw.Image(
+                //             pw.MemoryImage(planeImagesList[index]['hi']!),
+                //             height: 18,
+                //           ),
+                //         ),
+                //         pw.Expanded(
+                //           child: pw.Image(
+                //             pw.MemoryImage(planeImagesList[index]['gu']!),
+                //             height: 18,
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   );
+                // }).toList(),
               ],
         ),
       );
@@ -2970,6 +3101,66 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
         );
       }
 
+      // Pre-generate images for Lo Shu Planes section
+      final List<Map<String, dynamic>> planesData = [
+        {
+          'numbers': '492',
+          'en': 'Mental Plane',
+          'hi': 'मेंटल प्लेन',
+          'gu': 'માનસિક સ્તર',
+        },
+        {
+          'numbers': '357',
+          'en': 'Emotional Plane',
+          'hi': 'इમોશનલ प्लेन',
+          'gu': 'ભાવનાત્મક સ્તર',
+        },
+        {
+          'numbers': '816',
+          'en': 'Practical Plane',
+          'hi': 'प्रैक्टिकल प्लेન',
+          'gu': 'વ્યવહારિક સ્તર',
+        },
+        {
+          'numbers': '438',
+          'en': 'Thought Plane',
+          'hi': 'थॉट प्लेन',
+          'gu': 'વિચાર સ્તર',
+        },
+        {
+          'numbers': '951',
+          'en': 'Will Plane',
+          'hi': 'વિલ प्लेन',
+          'gu': 'ઈચ્છા સ્તર',
+        },
+        {
+          'numbers': '276',
+          'en': 'Action Plane',
+          'hi': 'एक्शन प्लेन',
+          'gu': 'ક્રિયા સ્તર',
+        },
+        {
+          'numbers': '456',
+          'en': 'Golden Plane',
+          'hi': 'ગોલ્ડન प्लेન',
+          'gu': 'સુવર્ણ સ્તર',
+        },
+        {'numbers': '258', 'en': 'Rajyog', 'hi': 'રાજયોગ', 'gu': 'રાજયોગ'},
+      ];
+
+      final List<Map<String, Uint8List>> planeImagesList = [];
+      for (final plane in planesData) {
+        final hiImg = await _captureTextAsImage(
+          plane['hi']!,
+          color: const Color(0xFF008000),
+        );
+        final guImg = await _captureTextAsImage(
+          plane['gu']!,
+          color: const Color(0xFF008000),
+        );
+        planeImagesList.add({'hi': hiImg, 'gu': guImg});
+      }
+
       pdf.addPage(
         pw.MultiPage(
           pageTheme: pw.PageTheme(
@@ -3194,6 +3385,77 @@ class _NumerologyAnalysisScreenState extends State<NumerologyAnalysisScreen>
                     imageBytes: gujaratiImage,
                   ),
                 ],
+
+                // Lo Shu Grid All Planes Section
+                pw.SizedBox(height: 30),
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.symmetric(vertical: 10),
+                  decoration: const pw.BoxDecoration(color: PdfColors.green800),
+                  child: pw.Center(
+                    child: pw.Text(
+                      'LO SHU GRID ALL PLANES',
+                      style: pw.TextStyle(
+                        font: boldFont,
+                        color: PdfColors.white,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 15),
+                ...planesData.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final plane = entry.value;
+                  return pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 8),
+                    child: pw.Row(
+                      children: [
+                        pw.SizedBox(
+                          width: 45,
+                          child: pw.Text(
+                            plane['numbers']!,
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 13,
+                              color: PdfColors.green800,
+                            ),
+                          ),
+                        ),
+                        pw.Text(
+                          ' - ',
+                          style: pw.TextStyle(
+                            font: boldFont,
+                            fontSize: 13,
+                            color: PdfColors.green800,
+                          ),
+                        ),
+                        pw.Expanded(
+                          child: pw.Text(
+                            plane['en']!,
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 13,
+                              color: PdfColors.green800,
+                            ),
+                          ),
+                        ),
+                        pw.Expanded(
+                          child: pw.Image(
+                            pw.MemoryImage(planeImagesList[index]['hi']!),
+                            height: 18,
+                          ),
+                        ),
+                        pw.Expanded(
+                          child: pw.Image(
+                            pw.MemoryImage(planeImagesList[index]['gu']!),
+                            height: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ],
         ),
       );
